@@ -2,26 +2,6 @@ import sqlite3
 from datetime import datetime
 import hashlib
 
-def parse_datetime(dt_string):
-    """Parse datetime string with multiple format support"""
-    if isinstance(dt_string, datetime):
-        return dt_string
-    
-    formats = [
-        '%Y-%m-%d %H:%M:%S.%f',
-        '%Y-%m-%d %H:%M:%S',
-        '%Y-%m-%d'
-    ]
-    
-    for fmt in formats:
-        try:
-            return datetime.strptime(dt_string, fmt)
-        except ValueError:
-            continue
-    
-    # If all parsing fails, return current time
-    return datetime.now()
-
 def init_db():
     conn = sqlite3.connect('time_tracker.db')
     c = conn.cursor()
@@ -51,21 +31,10 @@ def init_db():
             created_by TEXT NOT NULL,
             created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
             published_date DATETIME,
+            todo_start_time DATETIME,
+            in_progress_start_time DATETIME,
             FOREIGN KEY (developer_assignee) REFERENCES users (username),
             FOREIGN KEY (created_by) REFERENCES users (username)
-        )
-    ''')
-    
-    # Enhanced time tracking table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS time_tracking (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            record_id INTEGER NOT NULL,
-            status TEXT NOT NULL,
-            start_time DATETIME NOT NULL,
-            end_time DATETIME,
-            time_spent REAL,
-            FOREIGN KEY (record_id) REFERENCES records (id)
         )
     ''')
     
@@ -78,39 +47,17 @@ def init_db():
             ('admin', admin_password, 'admin')
         )
     
-    # Check if we need to migrate the old time_tracking table
-    c.execute("PRAGMA table_info(time_tracking)")
+    # Add new columns if they don't exist
+    c.execute("PRAGMA table_info(records)")
     columns = [column[1] for column in c.fetchall()]
     
-    if 'status' not in columns:
-        print("Migrating time_tracking table to new schema...")
-        # Create a new table with the correct schema
-        c.execute('''
-            CREATE TABLE time_tracking_new (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id INTEGER NOT NULL,
-                status TEXT NOT NULL,
-                start_time DATETIME NOT NULL,
-                end_time DATETIME,
-                time_spent REAL,
-                FOREIGN KEY (record_id) REFERENCES records (id)
-            )
-        ''')
-        
-        # Copy data from old table if it exists
-        try:
-            c.execute('''
-                INSERT INTO time_tracking_new (record_id, status, start_time, end_time, time_spent)
-                SELECT record_id, 'In Progress', start_time, end_time, time_spent 
-                FROM time_tracking
-            ''')
-        except:
-            print("No data to migrate or migration failed")
-        
-        # Drop old table and rename new one
-        c.execute("DROP TABLE IF EXISTS time_tracking")
-        c.execute("ALTER TABLE time_tracking_new RENAME TO time_tracking")
-        print("Migration completed successfully")
+    if 'todo_start_time' not in columns:
+        c.execute("ALTER TABLE records ADD COLUMN todo_start_time DATETIME")
+        print("Added todo_start_time column")
+    
+    if 'in_progress_start_time' not in columns:
+        c.execute("ALTER TABLE records ADD COLUMN in_progress_start_time DATETIME")
+        print("Added in_progress_start_time column")
     
     conn.commit()
     conn.close()
@@ -246,13 +193,6 @@ def create_record(task, book_id, created_by, developer_assignee=None, page_count
     ''', (task, book_id, developer_assignee, page_count, ocr, eta, created_by))
     
     record_id = c.lastrowid
-    
-    # Log initial status
-    c.execute('''
-        INSERT INTO time_tracking (record_id, status, start_time)
-        VALUES (?, ?, ?)
-    ''', (record_id, 'Backlog', datetime.now()))
-    
     conn.commit()
     conn.close()
     return record_id
@@ -294,18 +234,19 @@ def update_record(record_id, task=None, book_id=None, developer_assignee=None, p
         updates.append("status = ?")
         params.append(status)
         
-        # End current status tracking
-        c.execute('''
-            UPDATE time_tracking 
-            SET end_time = ?, time_spent = ROUND((JULIANDAY(?) - JULIANDAY(start_time)) * 24, 2)
-            WHERE record_id = ? AND end_time IS NULL
-        ''', (datetime.now(), datetime.now(), record_id))
-        
-        # Start new status tracking
-        c.execute('''
-            INSERT INTO time_tracking (record_id, status, start_time)
-            VALUES (?, ?, ?)
-        ''', (record_id, status, datetime.now()))
+        # Handle status-specific timestamps
+        if status == 'TODO':
+            updates.append("todo_start_time = ?")
+            params.append(datetime.now())
+            # Clear in-progress time if moving back to TODO
+            updates.append("in_progress_start_time = NULL")
+        elif status == 'In Progress':
+            updates.append("in_progress_start_time = ?")
+            params.append(datetime.now())
+        elif status in ['In Review', 'Published', 'Backlog']:
+            # Clear both timestamps when moving away from TODO/In Progress
+            updates.append("todo_start_time = NULL")
+            updates.append("in_progress_start_time = NULL")
         
         if status == 'Published':
             updates.append("published_date = ?")
@@ -364,7 +305,9 @@ def get_records(user_role=None, username=None, status=None, search=None, limit=2
             'created_by': row[8],
             'created_date': row[9],
             'published_date': row[10],
-            'created_by_role': row[11]
+            'todo_start_time': row[11],
+            'in_progress_start_time': row[12],
+            'created_by_role': row[13]
         })
     
     conn.close()
@@ -389,7 +332,9 @@ def get_record_by_id(record_id):
             'status': row[7],
             'created_by': row[8],
             'created_date': row[9],
-            'published_date': row[10]
+            'published_date': row[10],
+            'todo_start_time': row[11],
+            'in_progress_start_time': row[12]
         }
     else:
         record = None
@@ -397,61 +342,29 @@ def get_record_by_id(record_id):
     conn.close()
     return record
 
-def get_time_spent_by_status(record_id, status=None):
-    conn = sqlite3.connect('time_tracker.db')
-    c = conn.cursor()
+def calculate_time_spent(start_time):
+    """Calculate time spent from start time to now"""
+    if not start_time:
+        return 0
     
-    if status:
-        c.execute('''
-            SELECT SUM(time_spent) 
-            FROM time_tracking 
-            WHERE record_id = ? AND status = ? AND time_spent IS NOT NULL
-        ''', (record_id, status))
-    else:
-        c.execute('''
-            SELECT SUM(time_spent) 
-            FROM time_tracking 
-            WHERE record_id = ? AND time_spent IS NOT NULL
-        ''', (record_id,))
+    if isinstance(start_time, str):
+        try:
+            start_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            try:
+                start_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
+            except ValueError:
+                return 0
     
-    result = c.fetchone()
-    total_time = result[0] if result and result[0] else 0
-    conn.close()
-    return total_time
-
-def get_current_status_time(record_id):
-    conn = sqlite3.connect('time_tracker.db')
-    c = conn.cursor()
-    
-    c.execute('''
-        SELECT status, start_time 
-        FROM time_tracking 
-        WHERE record_id = ? AND end_time IS NULL
-    ''', (record_id,))
-    
-    result = c.fetchone()
-    conn.close()
-    
-    if result:
-        status = result[0]
-        start_time_str = result[1]
-        
-        # Use the robust datetime parser
-        start_time = parse_datetime(start_time_str)
-        current_time = datetime.now()
-        time_spent = (current_time - start_time).total_seconds() / 3600  # Convert to hours
-        return {'status': status, 'time_spent': round(time_spent, 2)}
-    
-    return None
+    current_time = datetime.now()
+    time_spent = (current_time - start_time).total_seconds() / 3600  # Convert to hours
+    return round(time_spent, 2)
 
 def delete_record(record_id):
     conn = sqlite3.connect('time_tracker.db')
     c = conn.cursor()
     
     try:
-        # First delete related time tracking records
-        c.execute("DELETE FROM time_tracking WHERE record_id = ?", (record_id,))
-        # Then delete the record
         c.execute("DELETE FROM records WHERE id = ?", (record_id,))
         conn.commit()
         success = True

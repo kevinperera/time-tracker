@@ -3,19 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Time Tracker</title>
+    <title>Dashboard - Time Tracker Pro</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- Enhanced Header -->
     <div class="header">
         <div class="header-content">
-            <h1>Time Tracker</h1>
-            <div class="user-info">
-                Welcome, {{ username }} ({{ role }}) | 
-                {% if role == 'admin' %}
-                <a href="/admin/users">User Management</a> |
-                {% endif %}
-                <a href="/logout">Logout</a>
+            <div class="logo-section">
+                <div class="logo">CONTENT CAPTURE TEAM PDF</div>
+                <div class="tagline">Efficient Task Management</div>
+            </div>
+            
+            <div class="user-nav">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        {{ username[0]|upper }}
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">{{ username }}</div>
+                        <div class="user-role">{{ role|title }}</div>
+                    </div>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="/dashboard" class="nav-link active">
+                        📊 Dashboard
+                    </a>
+                    {% if role == 'admin' %}
+                    <a href="/admin/users" class="nav-link">
+                        👥 User Management
+                    </a>
+                    {% endif %}
+                    <a href="/logout" class="nav-link logout">
+                        🚪 Logout
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -72,7 +95,7 @@
 
         <!-- Records List -->
         <div class="records-section">
-            <h2>Records</h2>
+            <h2>Task Records</h2>
             
             <!-- Search and Filters -->
             <div class="search-filters">

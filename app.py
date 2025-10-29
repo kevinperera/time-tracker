@@ -206,18 +206,17 @@ def get_records_route():
             else:
                 record['eta_warning'] = False
             
-            # Add time spent data
-            record['time_todo'] = get_time_spent_by_status(record['id'], 'TODO')
-            record['time_in_progress'] = get_time_spent_by_status(record['id'], 'In Progress')
-            
-            # Add current status time if applicable
-            current_status = get_current_status_time(record['id'])
-            if current_status:
-                record['current_status'] = current_status['status']
-                record['current_status_time'] = current_status['time_spent']
+            # Calculate time spent for TODO status
+            if record['status'] == 'TODO' and record['todo_start_time']:
+                record['time_todo'] = calculate_time_spent(record['todo_start_time'])
             else:
-                record['current_status'] = record['status']
-                record['current_status_time'] = 0
+                record['time_todo'] = 0
+            
+            # Calculate time spent for In Progress status
+            if record['status'] == 'In Progress' and record['in_progress_start_time']:
+                record['time_in_progress'] = calculate_time_spent(record['in_progress_start_time'])
+            else:
+                record['time_in_progress'] = 0
         
         return jsonify({
             'records': records, 
@@ -228,6 +227,7 @@ def get_records_route():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/records/create', methods=['POST'])
 @login_required
