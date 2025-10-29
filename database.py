@@ -2,6 +2,26 @@ import sqlite3
 from datetime import datetime
 import hashlib
 
+def parse_datetime(dt_string):
+    """Parse datetime string with multiple format support"""
+    if isinstance(dt_string, datetime):
+        return dt_string
+    
+    formats = [
+        '%Y-%m-%d %H:%M:%S.%f',
+        '%Y-%m-%d %H:%M:%S',
+        '%Y-%m-%d'
+    ]
+    
+    for fmt in formats:
+        try:
+            return datetime.strptime(dt_string, fmt)
+        except ValueError:
+            continue
+    
+    # If all parsing fails, return current time
+    return datetime.now()
+
 def init_db():
     conn = sqlite3.connect('time_tracker.db')
     c = conn.cursor()
@@ -36,7 +56,7 @@ def init_db():
         )
     ''')
     
-    # Enhanced time tracking table - FIXED SCHEMA
+    # Enhanced time tracking table
     c.execute('''
         CREATE TABLE IF NOT EXISTS time_tracking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -416,12 +436,8 @@ def get_current_status_time(record_id):
         status = result[0]
         start_time_str = result[1]
         
-        # Handle both string and datetime objects
-        if isinstance(start_time_str, str):
-            start_time = datetime.strptime(start_time_str, '%Y-%m-%d %H:%M:%S')
-        else:
-            start_time = start_time_str
-            
+        # Use the robust datetime parser
+        start_time = parse_datetime(start_time_str)
         current_time = datetime.now()
         time_spent = (current_time - start_time).total_seconds() / 3600  # Convert to hours
         return {'status': status, 'time_spent': round(time_spent, 2)}
