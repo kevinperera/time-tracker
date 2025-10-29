@@ -36,7 +36,7 @@ def init_db():
         )
     ''')
     
-    # Enhanced time tracking table
+    # Enhanced time tracking table - FIXED SCHEMA
     c.execute('''
         CREATE TABLE IF NOT EXISTS time_tracking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,6 +57,40 @@ def init_db():
             "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
             ('admin', admin_password, 'admin')
         )
+    
+    # Check if we need to migrate the old time_tracking table
+    c.execute("PRAGMA table_info(time_tracking)")
+    columns = [column[1] for column in c.fetchall()]
+    
+    if 'status' not in columns:
+        print("Migrating time_tracking table to new schema...")
+        # Create a new table with the correct schema
+        c.execute('''
+            CREATE TABLE time_tracking_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                start_time DATETIME NOT NULL,
+                end_time DATETIME,
+                time_spent REAL,
+                FOREIGN KEY (record_id) REFERENCES records (id)
+            )
+        ''')
+        
+        # Copy data from old table if it exists
+        try:
+            c.execute('''
+                INSERT INTO time_tracking_new (record_id, status, start_time, end_time, time_spent)
+                SELECT record_id, 'In Progress', start_time, end_time, time_spent 
+                FROM time_tracking
+            ''')
+        except:
+            print("No data to migrate or migration failed")
+        
+        # Drop old table and rename new one
+        c.execute("DROP TABLE IF EXISTS time_tracking")
+        c.execute("ALTER TABLE time_tracking_new RENAME TO time_tracking")
+        print("Migration completed successfully")
     
     conn.commit()
     conn.close()
@@ -209,7 +243,11 @@ def update_record(record_id, task=None, book_id=None, developer_assignee=None, p
     
     # Get current status before update
     c.execute("SELECT status FROM records WHERE id = ?", (record_id,))
-    current_status = c.fetchone()[0]
+    current_status_result = c.fetchone()
+    if current_status_result:
+        current_status = current_status_result[0]
+    else:
+        current_status = None
     
     updates = []
     params = []
@@ -357,7 +395,7 @@ def get_time_spent_by_status(record_id, status=None):
         ''', (record_id,))
     
     result = c.fetchone()
-    total_time = result[0] if result[0] else 0
+    total_time = result[0] if result and result[0] else 0
     conn.close()
     return total_time
 
@@ -376,7 +414,14 @@ def get_current_status_time(record_id):
     
     if result:
         status = result[0]
-        start_time = datetime.strptime(result[1], '%Y-%m-%d %H:%M:%S')
+        start_time_str = result[1]
+        
+        # Handle both string and datetime objects
+        if isinstance(start_time_str, str):
+            start_time = datetime.strptime(start_time_str, '%Y-%m-%d %H:%M:%S')
+        else:
+            start_time = start_time_str
+            
         current_time = datetime.now()
         time_spent = (current_time - start_time).total_seconds() / 3600  # Convert to hours
         return {'status': status, 'time_spent': round(time_spent, 2)}
