@@ -16,6 +16,8 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'username' not in session:
+            if request.headers.get('Content-Type') == 'application/json':
+                return jsonify({'error': 'Authentication required'}), 401
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -26,6 +28,8 @@ def role_required(roles):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if 'username' not in session:
+                if request.headers.get('Content-Type') == 'application/json':
+                    return jsonify({'error': 'Authentication required'}), 401
                 return redirect(url_for('login'))
             if session.get('role') not in roles:
                 return jsonify({'error': 'Access denied'}), 403
@@ -79,292 +83,347 @@ def admin_users():
 @login_required
 @role_required(['admin'])
 def api_get_users():
-    users = get_users()
-    return jsonify({'users': users})
+    try:
+        users = get_users()
+        return jsonify({'users': users})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/create_user', methods=['POST'])
 @login_required
 @role_required(['admin'])
 def create_user_route():
-    username = request.json.get('username')
-    password = request.json.get('password')
-    role = request.json.get('role')
-    
-    if not username or not password or not role:
-        return jsonify({'error': 'Username, password, and role are required'}), 400
-    
-    if create_user(username, password, role):
-        return jsonify({'message': 'User created successfully'})
-    else:
-        return jsonify({'error': 'Username already exists'}), 400
+    try:
+        username = request.json.get('username')
+        password = request.json.get('password')
+        role = request.json.get('role')
+        
+        if not username or not password or not role:
+            return jsonify({'error': 'Username, password, and role are required'}), 400
+        
+        if create_user(username, password, role):
+            return jsonify({'message': 'User created successfully'})
+        else:
+            return jsonify({'error': 'Username already exists'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/change_password', methods=['POST'])
 @login_required
 @role_required(['admin'])
 def change_password_route():
-    username = request.json.get('username')
-    new_password = request.json.get('new_password')
-    
-    if not username or not new_password:
-        return jsonify({'error': 'Username and new password are required'}), 400
-    
-    change_password(username, new_password)
-    return jsonify({'message': 'Password changed successfully'})
+    try:
+        username = request.json.get('username')
+        new_password = request.json.get('new_password')
+        
+        if not username or not new_password:
+            return jsonify({'error': 'Username and new password are required'}), 400
+        
+        change_password(username, new_password)
+        return jsonify({'message': 'Password changed successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/update_user', methods=['POST'])
 @login_required
 @role_required(['admin'])
 def update_user_route():
-    old_username = request.json.get('old_username')
-    new_username = request.json.get('new_username')
-    new_role = request.json.get('new_role')
-    
-    if not old_username or not new_username or not new_role:
-        return jsonify({'error': 'All fields are required'}), 400
-    
-    if update_user(old_username, new_username, new_role):
-        return jsonify({'message': 'User updated successfully'})
-    else:
-        return jsonify({'error': 'Failed to update user'}), 400
+    try:
+        old_username = request.json.get('old_username')
+        new_username = request.json.get('new_username')
+        new_role = request.json.get('new_role')
+        
+        if not old_username or not new_username or not new_role:
+            return jsonify({'error': 'All fields are required'}), 400
+        
+        if update_user(old_username, new_username, new_role):
+            return jsonify({'message': 'User updated successfully'})
+        else:
+            return jsonify({'error': 'Failed to update user'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/delete_user', methods=['POST'])
 @login_required
 @role_required(['admin'])
 def delete_user_route():
-    username = request.json.get('username')
-    
-    if not username:
-        return jsonify({'error': 'Username is required'}), 400
-    
-    if username == 'admin':
-        return jsonify({'error': 'Cannot delete admin user'}), 400
-    
-    if delete_user(username):
-        return jsonify({'message': 'User deleted successfully'})
-    else:
-        return jsonify({'error': 'Failed to delete user'}), 400
+    try:
+        username = request.json.get('username')
+        
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+        
+        if username == 'admin':
+            return jsonify({'error': 'Cannot delete admin user'}), 400
+        
+        if delete_user(username):
+            return jsonify({'message': 'User deleted successfully'})
+        else:
+            return jsonify({'error': 'Failed to delete user'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Records Management
 @app.route('/records')
 @login_required
 def get_records_route():
-    status_filter = request.args.get('status', '')
-    search_query = request.args.get('search', '')
-    page = int(request.args.get('page', 1))
-    limit = int(request.args.get('limit', 20))
-    offset = (page - 1) * limit
-    
-    user_role = session['role']
-    username = session['username']
-    
-    records = get_records(
-        user_role=user_role, 
-        username=username, 
-        status=status_filter, 
-        search=search_query,
-        limit=limit,
-        offset=offset
-    )
-    
-    total_records = get_records_count(
-        user_role=user_role,
-        username=username,
-        status=status_filter,
-        search=search_query
-    )
-    
-    # Add time tracking data for each record
-    for record in records:
-        # Add ETA warning
-        if record['eta']:
-            try:
-                eta_date = datetime.strptime(record['eta'], '%Y-%m-%d')
-                days_until_eta = (eta_date - datetime.now()).days
-                record['eta_warning'] = days_until_eta <= 2
-            except ValueError:
+    try:
+        status_filter = request.args.get('status', '')
+        search_query = request.args.get('search', '')
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 20))
+        offset = (page - 1) * limit
+        
+        user_role = session['role']
+        username = session['username']
+        
+        records = get_records(
+            user_role=user_role, 
+            username=username, 
+            status=status_filter, 
+            search=search_query,
+            limit=limit,
+            offset=offset
+        )
+        
+        total_records = get_records_count(
+            user_role=user_role,
+            username=username,
+            status=status_filter,
+            search=search_query
+        )
+        
+        # Add time tracking data for each record
+        for record in records:
+            # Add ETA warning
+            if record['eta']:
+                try:
+                    eta_date = datetime.strptime(record['eta'], '%Y-%m-%d')
+                    days_until_eta = (eta_date - datetime.now()).days
+                    record['eta_warning'] = days_until_eta <= 2
+                except ValueError:
+                    record['eta_warning'] = False
+            else:
                 record['eta_warning'] = False
-        else:
-            record['eta_warning'] = False
+            
+            # Add time spent data
+            record['time_todo'] = get_time_spent_by_status(record['id'], 'TODO')
+            record['time_in_progress'] = get_time_spent_by_status(record['id'], 'In Progress')
+            
+            # Add current status time if applicable
+            current_status = get_current_status_time(record['id'])
+            if current_status:
+                record['current_status'] = current_status['status']
+                record['current_status_time'] = current_status['time_spent']
+            else:
+                record['current_status'] = record['status']
+                record['current_status_time'] = 0
         
-        # Add time spent data
-        record['time_todo'] = get_time_spent_by_status(record['id'], 'TODO')
-        record['time_in_progress'] = get_time_spent_by_status(record['id'], 'In Progress')
-        
-        # Add current status time if applicable
-        current_status = get_current_status_time(record['id'])
-        if current_status:
-            record['current_status'] = current_status['status']
-            record['current_status_time'] = current_status['time_spent']
-        else:
-            record['current_status'] = record['status']
-            record['current_status_time'] = 0
-    
-    return jsonify({
-        'records': records, 
-        'user_role': user_role,
-        'total_records': total_records,
-        'current_page': page,
-        'total_pages': (total_records + limit - 1) // limit
-    })
+        return jsonify({
+            'records': records, 
+            'user_role': user_role,
+            'total_records': total_records,
+            'current_page': page,
+            'total_pages': (total_records + limit - 1) // limit
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/records/create', methods=['POST'])
 @login_required
 @role_required(['admin', 'lead'])
 def create_record_route():
-    task = request.json.get('task')
-    book_id = request.json.get('book_id')
-    developer_assignee = request.json.get('developer_assignee')
-    page_count = request.json.get('page_count')
-    ocr = request.json.get('ocr')
-    eta = request.json.get('eta')
-    
-    if not task or not book_id:
-        return jsonify({'error': 'Task and Book ID are required'}), 400
-    
-    record_id = create_record(task, book_id, session['username'], developer_assignee, page_count, ocr, eta)
-    return jsonify({'message': 'Record created successfully', 'record_id': record_id})
+    try:
+        task = request.json.get('task')
+        book_id = request.json.get('book_id')
+        developer_assignee = request.json.get('developer_assignee')
+        page_count = request.json.get('page_count')
+        ocr = request.json.get('ocr')
+        eta = request.json.get('eta')
+        
+        if not task or not book_id:
+            return jsonify({'error': 'Task and Book ID are required'}), 400
+        
+        record_id = create_record(task, book_id, session['username'], developer_assignee, page_count, ocr, eta)
+        return jsonify({'message': 'Record created successfully', 'record_id': record_id})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/records/<int:record_id>')
 @login_required
 def get_record_route(record_id):
-    record = get_record_by_id(record_id)
-    if not record:
-        return jsonify({'error': 'Record not found'}), 404
-    
-    # Check if user has permission to view this record
-    user_role = session['role']
-    username = session['username']
-    
-    if user_role == 'developer' and record['developer_assignee'] != username:
-        return jsonify({'error': 'Access denied'}), 403
-    
-    return jsonify(record)
+    try:
+        record = get_record_by_id(record_id)
+        if not record:
+            return jsonify({'error': 'Record not found'}), 404
+        
+        # Check if user has permission to view this record
+        user_role = session['role']
+        username = session['username']
+        
+        if user_role == 'developer' and record['developer_assignee'] != username:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        return jsonify(record)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/records/<int:record_id>/update', methods=['POST'])
 @login_required
 def update_record_route(record_id):
-    data = request.json
-    
-    # Check if user has permission to edit this record
-    record = get_record_by_id(record_id)
-    if not record:
-        return jsonify({'error': 'Record not found'}), 404
-    
-    user_role = session['role']
-    username = session['username']
-    
-    # Developers cannot update records (only status through separate endpoint)
-    if user_role == 'developer':
-        return jsonify({'error': 'Access denied - Developers cannot edit records'}), 403
-    
-    # Admin and Lead can update all fields
-    if user_role in ['admin', 'lead']:
-        update_record(record_id, **data)
-        return jsonify({'message': 'Record updated successfully'})
-    
-    return jsonify({'error': 'Access denied'}), 403
+    try:
+        data = request.json
+        
+        # Check if user has permission to edit this record
+        record = get_record_by_id(record_id)
+        if not record:
+            return jsonify({'error': 'Record not found'}), 404
+        
+        user_role = session['role']
+        username = session['username']
+        
+        # Developers cannot update records (only status through separate endpoint)
+        if user_role == 'developer':
+            return jsonify({'error': 'Access denied - Developers cannot edit records'}), 403
+        
+        # Admin and Lead can update all fields
+        if user_role in ['admin', 'lead']:
+            update_record(record_id, **data)
+            return jsonify({'message': 'Record updated successfully'})
+        
+        return jsonify({'error': 'Access denied'}), 403
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/records/<int:record_id>/status', methods=['POST'])
 @login_required
 def update_record_status_route(record_id):
-    data = request.json
-    new_status = data.get('status')
-    
-    if not new_status:
-        return jsonify({'error': 'Status is required'}), 400
-    
-    # Check if user has permission to update status
-    record = get_record_by_id(record_id)
-    if not record:
-        return jsonify({'error': 'Record not found'}), 404
-    
-    user_role = session['role']
-    username = session['username']
-    
-    # Developers can only update status of their assigned records
-    if user_role == 'developer':
-        if record['developer_assignee'] == username:
+    try:
+        data = request.json
+        new_status = data.get('status')
+        
+        if not new_status:
+            return jsonify({'error': 'Status is required'}), 400
+        
+        # Check if user has permission to update status
+        record = get_record_by_id(record_id)
+        if not record:
+            return jsonify({'error': 'Record not found'}), 404
+        
+        user_role = session['role']
+        username = session['username']
+        
+        # Developers can only update status of their assigned records
+        if user_role == 'developer':
+            if record['developer_assignee'] == username:
+                update_record(record_id, status=new_status)
+                return jsonify({'message': 'Status updated successfully'})
+            else:
+                return jsonify({'error': 'Access denied - You can only update status of your assigned records'}), 403
+        
+        # Admin and Lead can update status of any record
+        if user_role in ['admin', 'lead']:
             update_record(record_id, status=new_status)
             return jsonify({'message': 'Status updated successfully'})
-        else:
-            return jsonify({'error': 'Access denied - You can only update status of your assigned records'}), 403
-    
-    # Admin and Lead can update status of any record
-    if user_role in ['admin', 'lead']:
-        update_record(record_id, status=new_status)
-        return jsonify({'message': 'Status updated successfully'})
-    
-    return jsonify({'error': 'Access denied'}), 403
+        
+        return jsonify({'error': 'Access denied'}), 403
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/records/<int:record_id>/delete', methods=['POST'])
 @login_required
 @role_required(['admin', 'lead'])
 def delete_record_route(record_id):
-    if delete_record(record_id):
-        return jsonify({'message': 'Record deleted successfully'})
-    else:
-        return jsonify({'error': 'Failed to delete record'}), 400
+    try:
+        if delete_record(record_id):
+            return jsonify({'message': 'Record deleted successfully'})
+        else:
+            return jsonify({'error': 'Failed to delete record'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/records/<int:record_id>/time')
 @login_required
 def get_record_time_route(record_id):
-    record = get_record_by_id(record_id)
-    if not record:
-        return jsonify({'error': 'Record not found'}), 404
-    
-    time_todo = get_time_spent_by_status(record_id, 'TODO')
-    time_in_progress = get_time_spent_by_status(record_id, 'In Progress')
-    total_time = get_time_spent_by_status(record_id)
-    
-    return jsonify({
-        'time_todo': time_todo,
-        'time_in_progress': time_in_progress,
-        'total_time': total_time
-    })
+    try:
+        record = get_record_by_id(record_id)
+        if not record:
+            return jsonify({'error': 'Record not found'}), 404
+        
+        time_todo = get_time_spent_by_status(record_id, 'TODO')
+        time_in_progress = get_time_spent_by_status(record_id, 'In Progress')
+        total_time = get_time_spent_by_status(record_id)
+        
+        return jsonify({
+            'time_todo': time_todo,
+            'time_in_progress': time_in_progress,
+            'total_time': total_time
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/developers')
 @login_required
 def get_developers_route():
-    developers = get_users(role='developer')
-    return jsonify({'developers': developers})
+    try:
+        developers = get_users(role='developer')
+        return jsonify({'developers': developers})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/export/csv')
 @login_required
 @role_required(['admin'])
 def export_csv():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    
-    # This would need to be implemented based on your date filtering needs
-    records = get_records()
-    
-    output = StringIO()
-    writer = csv.writer(output)
-    
-    # Write header
-    writer.writerow(['ID', 'Task', 'Book ID', 'Developer', 'Page Count', 'OCR', 'ETA', 'Status', 'Created By', 'Created Date', 'Published Date'])
-    
-    # Write data
-    for record in records:
-        writer.writerow([
-            record['id'],
-            record['task'],
-            record['book_id'],
-            record['developer_assignee'] or '',
-            record['page_count'] or '',
-            record['ocr'] or '',
-            record['eta'] or '',
-            record['status'],
-            record['created_by'],
-            record['created_date'],
-            record['published_date'] or ''
-        ])
-    
-    output.seek(0)
-    return output.getvalue(), 200, {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': 'attachment; filename=records_export.csv'
-    }
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        # This would need to be implemented based on your date filtering needs
+        records = get_records()
+        
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['ID', 'Task', 'Book ID', 'Developer', 'Page Count', 'OCR', 'ETA', 'Status', 'Created By', 'Created Date', 'Published Date'])
+        
+        # Write data
+        for record in records:
+            writer.writerow([
+                record['id'],
+                record['task'],
+                record['book_id'],
+                record['developer_assignee'] or '',
+                record['page_count'] or '',
+                record['ocr'] or '',
+                record['eta'] or '',
+                record['status'],
+                record['created_by'],
+                record['created_date'],
+                record['published_date'] or ''
+            ])
+        
+        output.seek(0)
+        return output.getvalue(), 200, {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': 'attachment; filename=records_export.csv'
+        }
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    if request.headers.get('Content-Type') == 'application/json':
+        return jsonify({'error': 'Resource not found'}), 404
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    if request.headers.get('Content-Type') == 'application/json':
+        return jsonify({'error': 'Internal server error'}), 500
+    return render_template('500.html'), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

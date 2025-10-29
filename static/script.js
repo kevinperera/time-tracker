@@ -116,6 +116,7 @@ async function loadDevelopers() {
 }
 
 // Load and display records
+// Load and display records
 async function loadRecords(page = 1) {
     try {
         currentPage = page;
@@ -138,7 +139,27 @@ async function loadRecords(page = 1) {
         container.innerHTML = '<div class="loading">Loading records...</div>';
         
         const response = await fetch(url);
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            // If not JSON, we might be getting an HTML error page
+            const text = await response.text();
+            console.error('Non-JSON response:', text.substring(0, 200));
+            
+            if (response.status === 401) {
+                // Redirect to login if unauthorized
+                window.location.href = '/login';
+                return;
+            }
+            throw new Error('Server returned non-JSON response. Please check authentication.');
+        }
+        
         const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        }
         
         if (data.error) {
             throw new Error(data.error);
@@ -153,10 +174,17 @@ async function loadRecords(page = 1) {
         
     } catch (error) {
         console.error('Error loading records:', error);
-        showMessage('Error loading records: ' + error.message, 'error');
+        const container = document.getElementById('recordsContainer');
+        container.innerHTML = `
+            <div class="error-message">
+                Error loading records: ${error.message}
+                <br><br>
+                <button onclick="location.reload()">Reload Page</button>
+                <button onclick="window.location.href='/logout'">Logout</button>
+            </div>
+        `;
     }
 }
-
 // Handle search input
 function handleSearch() {
     currentPage = 1;
