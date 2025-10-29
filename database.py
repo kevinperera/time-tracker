@@ -286,3 +286,59 @@ def get_time_spent(record_id, developer_username):
     total_time = result[0] if result[0] else 0
     conn.close()
     return total_time
+
+def update_user(old_username, new_username, new_role):
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute(
+            "UPDATE users SET username = ?, role = ? WHERE username = ?",
+            (new_username, new_role, old_username)
+        )
+        
+        # Also update any records that reference this user
+        c.execute(
+            "UPDATE records SET developer_assignee = ? WHERE developer_assignee = ?",
+            (new_username, old_username)
+        )
+        
+        c.execute(
+            "UPDATE records SET created_by = ? WHERE created_by = ?",
+            (new_username, old_username)
+        )
+        
+        conn.commit()
+        success = True
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        success = False
+    finally:
+        conn.close()
+    
+    return success
+
+def delete_user(username):
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    try:
+        # Check if user has any records
+        c.execute("SELECT COUNT(*) FROM records WHERE created_by = ? OR developer_assignee = ?", 
+                 (username, username))
+        record_count = c.fetchone()[0]
+        
+        if record_count > 0:
+            # Instead of deleting, you might want to disable the user
+            # For now, we'll return False to prevent deletion of users with records
+            return False
+        
+        c.execute("DELETE FROM users WHERE username = ?", (username,))
+        conn.commit()
+        success = True
+    except sqlite3.Error:
+        success = False
+    finally:
+        conn.close()
+    
+    return success

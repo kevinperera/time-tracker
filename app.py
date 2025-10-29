@@ -73,7 +73,14 @@ def dashboard():
 @role_required(['admin'])
 def admin_users():
     users = get_users()
-    return render_template('admin_users.html', users=users)
+    return render_template('admin_users.html', users=users, username=session['username'], role=session['role'])
+
+@app.route('/api/users')
+@login_required
+@role_required(['admin'])
+def api_get_users():
+    users = get_users()
+    return jsonify({'users': users})
 
 @app.route('/admin/create_user', methods=['POST'])
 @login_required
@@ -82,6 +89,9 @@ def create_user_route():
     username = request.json.get('username')
     password = request.json.get('password')
     role = request.json.get('role')
+    
+    if not username or not password or not role:
+        return jsonify({'error': 'Username, password, and role are required'}), 400
     
     if create_user(username, password, role):
         return jsonify({'message': 'User created successfully'})
@@ -95,8 +105,44 @@ def change_password_route():
     username = request.json.get('username')
     new_password = request.json.get('new_password')
     
+    if not username or not new_password:
+        return jsonify({'error': 'Username and new password are required'}), 400
+    
     change_password(username, new_password)
     return jsonify({'message': 'Password changed successfully'})
+
+@app.route('/admin/update_user', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def update_user_route():
+    old_username = request.json.get('old_username')
+    new_username = request.json.get('new_username')
+    new_role = request.json.get('new_role')
+    
+    if not old_username or not new_username or not new_role:
+        return jsonify({'error': 'All fields are required'}), 400
+    
+    if update_user(old_username, new_username, new_role):
+        return jsonify({'message': 'User updated successfully'})
+    else:
+        return jsonify({'error': 'Failed to update user'}), 400
+
+@app.route('/admin/delete_user', methods=['POST'])
+@login_required
+@role_required(['admin'])
+def delete_user_route():
+    username = request.json.get('username')
+    
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+    
+    if username == 'admin':
+        return jsonify({'error': 'Cannot delete admin user'}), 400
+    
+    if delete_user(username):
+        return jsonify({'message': 'User deleted successfully'})
+    else:
+        return jsonify({'error': 'Failed to delete user'}), 400
 
 # Records Management
 @app.route('/records')
@@ -107,9 +153,12 @@ def get_records_route():
     # Add ETA warning for records
     for record in records:
         if record['eta']:
-            eta_date = datetime.strptime(record['eta'], '%Y-%m-%d')
-            days_until_eta = (eta_date - datetime.now()).days
-            record['eta_warning'] = days_until_eta <= 2
+            try:
+                eta_date = datetime.strptime(record['eta'], '%Y-%m-%d')
+                days_until_eta = (eta_date - datetime.now()).days
+                record['eta_warning'] = days_until_eta <= 2
+            except ValueError:
+                record['eta_warning'] = False
         else:
             record['eta_warning'] = False
     
@@ -134,7 +183,6 @@ def create_record_route():
 
 @app.route('/records/<int:record_id>/update', methods=['POST'])
 @login_required
-@role_required(['admin', 'lead'])
 def update_record_route(record_id):
     data = request.json
     
@@ -151,6 +199,14 @@ def update_record_route(record_id):
     # Admin and Lead can update all fields
     update_record(record_id, **data)
     return jsonify({'message': 'Record updated successfully'})
+
+@app.route('/records/<int:record_id>')
+@login_required
+def get_record_route(record_id):
+    record = get_record_by_id(record_id)
+    if not record:
+        return jsonify({'error': 'Record not found'}), 404
+    return jsonify(record)
 
 @app.route('/records/<int:record_id>/time')
 @login_required

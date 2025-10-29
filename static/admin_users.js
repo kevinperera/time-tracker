@@ -1,52 +1,16 @@
 // Admin Users Management JavaScript
 document.addEventListener('DOMContentLoaded', function() {
-    loadUsers();
-    
     const createUserForm = document.getElementById('createUserForm');
+    const editUserForm = document.getElementById('editUserForm');
+    
     if (createUserForm) {
         createUserForm.addEventListener('submit', handleCreateUser);
     }
+    
+    if (editUserForm) {
+        editUserForm.addEventListener('submit', handleEditUser);
+    }
 });
-
-// Load all users
-async function loadUsers() {
-    try {
-        const response = await fetch('/admin/users');
-        // This endpoint would need to be created to return users list
-        const users = await response.json();
-        displayUsers(users);
-    } catch (error) {
-        console.error('Error loading users:', error);
-        showMessage('Error loading users', 'error');
-    }
-}
-
-// Display users in the container
-function displayUsers(users) {
-    const container = document.getElementById('usersContainer');
-    
-    if (!users || users.length === 0) {
-        container.innerHTML = '<div class="no-users">No users found.</div>';
-        return;
-    }
-    
-    container.innerHTML = users.map(user => `
-        <div class="user-card">
-            <div class="user-info">
-                <strong>Username:</strong> ${escapeHtml(user.username)}<br>
-                <strong>Role:</strong> ${escapeHtml(user.role)}<br>
-                <strong>Created:</strong> ${formatDate(user.created_at)}
-            </div>
-            <div class="user-actions">
-                <button onclick="changePassword('${escapeHtml(user.username)}')" 
-                        class="change-password-btn"
-                        ${user.role === 'admin' ? 'disabled' : ''}>
-                    Change Password
-                </button>
-            </div>
-        </div>
-    `).join('');
-}
 
 // Handle create user form submission
 async function handleCreateUser(event) {
@@ -75,12 +39,67 @@ async function handleCreateUser(event) {
         
         showMessage('User created successfully', 'success');
         document.getElementById('createUserForm').reset();
-        await loadUsers();
+        // Reload the page to show the new user
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
         
     } catch (error) {
         console.error('Error creating user:', error);
         showMessage('Error creating user: ' + error.message, 'error');
     }
+}
+
+// Handle edit user form submission
+async function handleEditUser(event) {
+    event.preventDefault();
+    
+    const formData = {
+        old_username: document.getElementById('editOldUsername').value,
+        new_username: document.getElementById('editUsername').value,
+        new_role: document.getElementById('editRole').value
+    };
+    
+    try {
+        const response = await fetch('/admin/update_user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        showMessage('User updated successfully', 'success');
+        closeEditModal();
+        // Reload the page to show updated users
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Error updating user:', error);
+        showMessage('Error updating user: ' + error.message, 'error');
+    }
+}
+
+// Edit user
+function editUser(username, role) {
+    document.getElementById('editOldUsername').value = username;
+    document.getElementById('editUsername').value = username;
+    document.getElementById('editRole').value = role;
+    
+    document.getElementById('editUserModal').style.display = 'block';
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('editUserModal').style.display = 'none';
 }
 
 // Change user password
@@ -122,8 +141,49 @@ async function changePassword(username) {
     }
 }
 
-// Utility functions (same as main script.js)
+// Delete user
+async function deleteUser(username) {
+    if (!confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/admin/delete_user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                username: username
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        showMessage(`User ${username} deleted successfully`, 'success');
+        // Reload the page to reflect changes
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        showMessage('Error deleting user: ' + error.message, 'error');
+    }
+}
+
+// Utility functions
 function showMessage(message, type) {
+    // Remove existing messages
+    const existingMessage = document.querySelector('.message');
+    if (existingMessage) {
+        existingMessage.remove();
+    }
+    
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
     messageDiv.textContent = message;
@@ -135,20 +195,4 @@ function showMessage(message, type) {
             messageDiv.remove();
         }
     }, 5000);
-}
-
-function formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
-}
-
-function escapeHtml(unsafe) {
-    if (!unsafe) return '';
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
 }
