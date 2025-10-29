@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Time Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="header">
+        <h1>Time Tracker</h1>
+        <div class="user-info">
+            Welcome, {{ username }} ({{ role }}) | 
+            {% if role == 'admin' %}
+            <a href="/admin/users">User Management</a> |
+            {% endif %}
+            <a href="/logout">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Create Record Form (Admin and Lead only) -->
+        {% if role in ['admin', 'lead'] %}
+        <div class="form-section">
+            <h2>Create New Record</h2>
+            <form id="createRecordForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="task">Task *</label>
+                        <input type="text" id="task" name="task" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="book_id">Book ID *</label>
+                        <input type="text" id="book_id" name="book_id" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="developer_assignee">Developer Assignee</label>
+                        <select id="developer_assignee" name="developer_assignee">
+                            <option value="">Select Developer</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="page_count">Page Count</label>
+                        <input type="number" id="page_count" name="page_count" min="1">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ocr">OCR</label>
+                        <select id="ocr" name="ocr">
+                            <option value="">Select</option>
+                            <option value="yes">Yes</option>
+                            <option value="no">No</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="eta">ETA</label>
+                        <input type="date" id="eta" name="eta">
+                    </div>
+                </div>
+                
+                <button type="submit">Create Record</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Records List -->
+        <div class="records-section">
+            <h2>Records</h2>
+            <div class="filters">
+                <select id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="Backlog">Backlog</option>
+                    <option value="TODO">TODO</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="In Review">In Review</option>
+                    <option value="Published">Published</option>
+                </select>
+                {% if role == 'admin' %}
+                <button onclick="exportCSV()">Export CSV</button>
+                {% endif %}
+            </div>
+            <div id="recordsContainer"></div>
+        </div>
+    </div>
+
+    <!-- Edit Record Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Edit Record</h2>
+            <form id="editRecordForm">
+                <input type="hidden" id="editRecordId">
+                <!-- Form fields similar to create form -->
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
