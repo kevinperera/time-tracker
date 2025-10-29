@@ -798,3 +798,170 @@ button:disabled {
     background: linear-gradient(135deg, #3498db, #2980b9) !important;
     color: white !important;
 }
+
+/* Search and Filter Styles */
+.search-filters {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 25px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.search-box {
+    flex: 1;
+    min-width: 250px;
+    position: relative;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px 40px 10px 15px;
+    border: 2px solid #e1e8ed;
+    border-radius: 25px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #7f8c8d;
+}
+
+.filter-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Pagination Styles */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 20px 0;
+}
+
+.pagination button {
+    padding: 8px 15px;
+    border: 1px solid #e1e8ed;
+    background: white;
+    color: #333;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+.pagination button:disabled {
+    background: #bdc3c7;
+    color: #7f8c8d;
+    cursor: not-allowed;
+}
+
+.pagination-info {
+    color: #7f8c8d;
+    font-size: 0.9em;
+}
+
+/* Enhanced Time Tracking Styles */
+.time-tracking-details {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border-left: 4px solid #3498db;
+}
+
+.time-metric {
+    margin-bottom: 10px;
+    padding: 8px;
+    background: white;
+    border-radius: 6px;
+    border-left: 3px solid #3498db;
+}
+
+.time-metric.todo {
+    border-left-color: #3498db;
+}
+
+.time-metric.in-progress {
+    border-left-color: #f39c12;
+}
+
+.time-metric-label {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.time-metric-value {
+    color: #7f8c8d;
+    font-size: 0.9em;
+}
+
+.progress-container {
+    margin-top: 5px;
+}
+
+.progress-label {
+    font-size: 0.8em;
+    color: #7f8c8d;
+    margin-bottom: 3px;
+}
+
+/* Status-specific styles */
+.status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.status-todo .status-indicator { background: #3498db; }
+.status-inprogress .status-indicator { background: #f39c12; }
+
+/* Developer restricted styles */
+.developer-restricted .edit-btn,
+.developer-restricted .status-select {
+    display: none;
+}
+
+/* Loading animation */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

@@ -149,13 +149,33 @@ def delete_user_route():
 @login_required
 def get_records_route():
     status_filter = request.args.get('status', '')
+    search_query = request.args.get('search', '')
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 20))
+    offset = (page - 1) * limit
+    
     user_role = session['role']
     username = session['username']
     
-    records = get_records(user_role=user_role, username=username, status=status_filter)
+    records = get_records(
+        user_role=user_role, 
+        username=username, 
+        status=status_filter, 
+        search=search_query,
+        limit=limit,
+        offset=offset
+    )
     
-    # Add ETA warning for records
+    total_records = get_records_count(
+        user_role=user_role,
+        username=username,
+        status=status_filter,
+        search=search_query
+    )
+    
+    # Add time tracking data for each record
     for record in records:
+        # Add ETA warning
         if record['eta']:
             try:
                 eta_date = datetime.strptime(record['eta'], '%Y-%m-%d')
@@ -165,8 +185,27 @@ def get_records_route():
                 record['eta_warning'] = False
         else:
             record['eta_warning'] = False
+        
+        # Add time spent data
+        record['time_todo'] = get_time_spent_by_status(record['id'], 'TODO')
+        record['time_in_progress'] = get_time_spent_by_status(record['id'], 'In Progress')
+        
+        # Add current status time if applicable
+        current_status = get_current_status_time(record['id'])
+        if current_status:
+            record['current_status'] = current_status['status']
+            record['current_status_time'] = current_status['time_spent']
+        else:
+            record['current_status'] = record['status']
+            record['current_status_time'] = 0
     
-    return jsonify({'records': records, 'user_role': user_role})
+    return jsonify({
+        'records': records, 
+        'user_role': user_role,
+        'total_records': total_records,
+        'current_page': page,
+        'total_pages': (total_records + limit - 1) // limit
+    })
 
 @app.route('/records/create', methods=['POST'])
 @login_required
@@ -214,18 +253,46 @@ def update_record_route(record_id):
     user_role = session['role']
     username = session['username']
     
-    # Developers can only update status of their assigned records
+    # Developers cannot update records (only status through separate endpoint)
     if user_role == 'developer':
-        if 'status' in data and record['developer_assignee'] == username:
-            log_time_tracking(record_id, username, record['status'], data['status'])
-            update_record(record_id, status=data['status'])
-            return jsonify({'message': 'Status updated successfully'})
-        return jsonify({'error': 'Access denied'}), 403
+        return jsonify({'error': 'Access denied - Developers cannot edit records'}), 403
     
     # Admin and Lead can update all fields
     if user_role in ['admin', 'lead']:
         update_record(record_id, **data)
         return jsonify({'message': 'Record updated successfully'})
+    
+    return jsonify({'error': 'Access denied'}), 403
+
+@app.route('/records/<int:record_id>/status', methods=['POST'])
+@login_required
+def update_record_status_route(record_id):
+    data = request.json
+    new_status = data.get('status')
+    
+    if not new_status:
+        return jsonify({'error': 'Status is required'}), 400
+    
+    # Check if user has permission to update status
+    record = get_record_by_id(record_id)
+    if not record:
+        return jsonify({'error': 'Record not found'}), 404
+    
+    user_role = session['role']
+    username = session['username']
+    
+    # Developers can only update status of their assigned records
+    if user_role == 'developer':
+        if record['developer_assignee'] == username:
+            update_record(record_id, status=new_status)
+            return jsonify({'message': 'Status updated successfully'})
+        else:
+            return jsonify({'error': 'Access denied - You can only update status of your assigned records'}), 403
+    
+    # Admin and Lead can update status of any record
+    if user_role in ['admin', 'lead']:
+        update_record(record_id, status=new_status)
+        return jsonify({'message': 'Status updated successfully'})
     
     return jsonify({'error': 'Access denied'}), 403
 
@@ -245,8 +312,15 @@ def get_record_time_route(record_id):
     if not record:
         return jsonify({'error': 'Record not found'}), 404
     
-    time_spent = get_time_spent(record_id, record['developer_assignee']) if record['developer_assignee'] else 0
-    return jsonify({'time_spent': time_spent})
+    time_todo = get_time_spent_by_status(record_id, 'TODO')
+    time_in_progress = get_time_spent_by_status(record_id, 'In Progress')
+    total_time = get_time_spent_by_status(record_id)
+    
+    return jsonify({
+        'time_todo': time_todo,
+        'time_in_progress': time_in_progress,
+        'total_time': total_time
+    })
 
 @app.route('/api/developers')
 @login_required

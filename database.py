@@ -36,19 +36,16 @@ def init_db():
         )
     ''')
     
-    # Time tracking table
+    # Enhanced time tracking table
     c.execute('''
         CREATE TABLE IF NOT EXISTS time_tracking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             record_id INTEGER NOT NULL,
-            developer_username TEXT NOT NULL,
-            status_from TEXT NOT NULL,
-            status_to TEXT NOT NULL,
+            status TEXT NOT NULL,
             start_time DATETIME NOT NULL,
             end_time DATETIME,
             time_spent REAL,
-            FOREIGN KEY (record_id) REFERENCES records (id),
-            FOREIGN KEY (developer_username) REFERENCES users (username)
+            FOREIGN KEY (record_id) REFERENCES records (id)
         )
     ''')
     
@@ -89,11 +86,11 @@ def get_users(role=None):
     c = conn.cursor()
     
     if role:
-        c.execute("SELECT username, role FROM users WHERE role = ? ORDER BY username", (role,))
+        c.execute("SELECT username, role, created_at FROM users WHERE role = ? ORDER BY username", (role,))
     else:
-        c.execute("SELECT username, role FROM users ORDER BY username")
+        c.execute("SELECT username, role, created_at FROM users ORDER BY username")
     
-    users = [{'username': row[0], 'role': row[1]} for row in c.fetchall()]
+    users = [{'username': row[0], 'role': row[1], 'created_at': row[2]} for row in c.fetchall()]
     conn.close()
     return users
 
@@ -128,164 +125,6 @@ def change_password(username, new_password):
     
     conn.commit()
     conn.close()
-
-def create_record(task, book_id, created_by, developer_assignee=None, page_count=None, ocr=None, eta=None):
-    conn = sqlite3.connect('time_tracker.db')
-    c = conn.cursor()
-    
-    c.execute('''
-        INSERT INTO records (task, book_id, developer_assignee, page_count, ocr, eta, status, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, 'Backlog', ?)
-    ''', (task, book_id, developer_assignee, page_count, ocr, eta, created_by))
-    
-    record_id = c.lastrowid
-    conn.commit()
-    conn.close()
-    return record_id
-
-def update_record(record_id, task=None, book_id=None, developer_assignee=None, page_count=None, ocr=None, eta=None, status=None):
-    conn = sqlite3.connect('time_tracker.db')
-    c = conn.cursor()
-    
-    updates = []
-    params = []
-    
-    if task is not None:
-        updates.append("task = ?")
-        params.append(task)
-    if book_id is not None:
-        updates.append("book_id = ?")
-        params.append(book_id)
-    if developer_assignee is not None:
-        updates.append("developer_assignee = ?")
-        params.append(developer_assignee)
-    if page_count is not None:
-        updates.append("page_count = ?")
-        params.append(page_count)
-    if ocr is not None:
-        updates.append("ocr = ?")
-        params.append(ocr)
-    if eta is not None:
-        updates.append("eta = ?")
-        params.append(eta)
-    if status is not None:
-        updates.append("status = ?")
-        params.append(status)
-        if status == 'Published':
-            updates.append("published_date = ?")
-            params.append(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    
-    if updates:
-        query = f"UPDATE records SET {', '.join(updates)} WHERE id = ?"
-        params.append(record_id)
-        c.execute(query, params)
-        conn.commit()
-    
-    conn.close()
-
-def get_records(user_role=None, username=None, status=None):
-    conn = sqlite3.connect('time_tracker.db')
-    c = conn.cursor()
-    
-    query = """
-        SELECT r.*, u.role as created_by_role 
-        FROM records r 
-        JOIN users u ON r.created_by = u.username
-    """
-    params = []
-    
-    if user_role == 'developer' and username:
-        query += " WHERE r.developer_assignee = ?"
-        params.append(username)
-    elif status:
-        query += " WHERE r.status = ?"
-        params.append(status)
-    
-    query += " ORDER BY r.created_date DESC"
-    
-    c.execute(query, params)
-    records = []
-    for row in c.fetchall():
-        records.append({
-            'id': row[0],
-            'task': row[1],
-            'book_id': row[2],
-            'developer_assignee': row[3],
-            'page_count': row[4],
-            'ocr': row[5],
-            'eta': row[6],
-            'status': row[7],
-            'created_by': row[8],
-            'created_date': row[9],
-            'published_date': row[10],
-            'created_by_role': row[11]
-        })
-    
-    conn.close()
-    return records
-
-def get_record_by_id(record_id):
-    conn = sqlite3.connect('time_tracker.db')
-    c = conn.cursor()
-    
-    c.execute("SELECT * FROM records WHERE id = ?", (record_id,))
-    row = c.fetchone()
-    
-    if row:
-        record = {
-            'id': row[0],
-            'task': row[1],
-            'book_id': row[2],
-            'developer_assignee': row[3],
-            'page_count': row[4],
-            'ocr': row[5],
-            'eta': row[6],
-            'status': row[7],
-            'created_by': row[8],
-            'created_date': row[9],
-            'published_date': row[10]
-        }
-    else:
-        record = None
-    
-    conn.close()
-    return record
-
-def log_time_tracking(record_id, developer_username, status_from, status_to):
-    conn = sqlite3.connect('time_tracker.db')
-    c = conn.cursor()
-    
-    # End previous active session for this record and developer
-    c.execute('''
-        UPDATE time_tracking 
-        SET end_time = ?, time_spent = ROUND((JULIANDAY(?) - JULIANDAY(start_time)) * 24, 2)
-        WHERE record_id = ? AND developer_username = ? AND end_time IS NULL
-    ''', (datetime.now(), datetime.now(), record_id, developer_username))
-    
-    # Start new session if moving to In Progress
-    if status_to == 'In Progress':
-        c.execute('''
-            INSERT INTO time_tracking (record_id, developer_username, status_from, status_to, start_time)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (record_id, developer_username, status_from, status_to, datetime.now()))
-    
-    conn.commit()
-    conn.close()
-
-def get_time_spent(record_id, developer_username):
-    conn = sqlite3.connect('time_tracker.db')
-    c = conn.cursor()
-    
-    c.execute('''
-        SELECT SUM(time_spent) 
-        FROM time_tracking 
-        WHERE record_id = ? AND developer_username = ? AND time_spent IS NOT NULL
-    ''', (record_id, developer_username))
-    
-    result = c.fetchone()
-    total_time = result[0] if result[0] else 0
-    conn.close()
-    return total_time
 
 def update_user(old_username, new_username, new_role):
     conn = sqlite3.connect('time_tracker.db')
@@ -343,6 +182,207 @@ def delete_user(username):
     
     return success
 
+def create_record(task, book_id, created_by, developer_assignee=None, page_count=None, ocr=None, eta=None):
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    c.execute('''
+        INSERT INTO records (task, book_id, developer_assignee, page_count, ocr, eta, status, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, 'Backlog', ?)
+    ''', (task, book_id, developer_assignee, page_count, ocr, eta, created_by))
+    
+    record_id = c.lastrowid
+    
+    # Log initial status
+    c.execute('''
+        INSERT INTO time_tracking (record_id, status, start_time)
+        VALUES (?, ?, ?)
+    ''', (record_id, 'Backlog', datetime.now()))
+    
+    conn.commit()
+    conn.close()
+    return record_id
+
+def update_record(record_id, task=None, book_id=None, developer_assignee=None, page_count=None, ocr=None, eta=None, status=None):
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    # Get current status before update
+    c.execute("SELECT status FROM records WHERE id = ?", (record_id,))
+    current_status = c.fetchone()[0]
+    
+    updates = []
+    params = []
+    
+    if task is not None:
+        updates.append("task = ?")
+        params.append(task)
+    if book_id is not None:
+        updates.append("book_id = ?")
+        params.append(book_id)
+    if developer_assignee is not None:
+        updates.append("developer_assignee = ?")
+        params.append(developer_assignee)
+    if page_count is not None:
+        updates.append("page_count = ?")
+        params.append(page_count)
+    if ocr is not None:
+        updates.append("ocr = ?")
+        params.append(ocr)
+    if eta is not None:
+        updates.append("eta = ?")
+        params.append(eta)
+    if status is not None and status != current_status:
+        updates.append("status = ?")
+        params.append(status)
+        
+        # End current status tracking
+        c.execute('''
+            UPDATE time_tracking 
+            SET end_time = ?, time_spent = ROUND((JULIANDAY(?) - JULIANDAY(start_time)) * 24, 2)
+            WHERE record_id = ? AND end_time IS NULL
+        ''', (datetime.now(), datetime.now(), record_id))
+        
+        # Start new status tracking
+        c.execute('''
+            INSERT INTO time_tracking (record_id, status, start_time)
+            VALUES (?, ?, ?)
+        ''', (record_id, status, datetime.now()))
+        
+        if status == 'Published':
+            updates.append("published_date = ?")
+            params.append(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    
+    if updates:
+        query = f"UPDATE records SET {', '.join(updates)} WHERE id = ?"
+        params.append(record_id)
+        c.execute(query, params)
+    
+    conn.commit()
+    conn.close()
+
+def get_records(user_role=None, username=None, status=None, search=None, limit=20, offset=0):
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    query = """
+        SELECT r.*, u.role as created_by_role 
+        FROM records r 
+        JOIN users u ON r.created_by = u.username
+    """
+    params = []
+    conditions = []
+    
+    if user_role == 'developer' and username:
+        conditions.append("(r.developer_assignee = ? OR r.developer_assignee IS NULL)")
+        params.append(username)
+    
+    if status:
+        conditions.append("r.status = ?")
+        params.append(status)
+    
+    if search:
+        conditions.append("(r.task LIKE ? OR r.book_id LIKE ? OR r.developer_assignee LIKE ?)")
+        params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
+    
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    
+    query += " ORDER BY r.created_date DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+    
+    c.execute(query, params)
+    records = []
+    for row in c.fetchall():
+        records.append({
+            'id': row[0],
+            'task': row[1],
+            'book_id': row[2],
+            'developer_assignee': row[3],
+            'page_count': row[4],
+            'ocr': row[5],
+            'eta': row[6],
+            'status': row[7],
+            'created_by': row[8],
+            'created_date': row[9],
+            'published_date': row[10],
+            'created_by_role': row[11]
+        })
+    
+    conn.close()
+    return records
+
+def get_record_by_id(record_id):
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    c.execute("SELECT * FROM records WHERE id = ?", (record_id,))
+    row = c.fetchone()
+    
+    if row:
+        record = {
+            'id': row[0],
+            'task': row[1],
+            'book_id': row[2],
+            'developer_assignee': row[3],
+            'page_count': row[4],
+            'ocr': row[5],
+            'eta': row[6],
+            'status': row[7],
+            'created_by': row[8],
+            'created_date': row[9],
+            'published_date': row[10]
+        }
+    else:
+        record = None
+    
+    conn.close()
+    return record
+
+def get_time_spent_by_status(record_id, status=None):
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    if status:
+        c.execute('''
+            SELECT SUM(time_spent) 
+            FROM time_tracking 
+            WHERE record_id = ? AND status = ? AND time_spent IS NOT NULL
+        ''', (record_id, status))
+    else:
+        c.execute('''
+            SELECT SUM(time_spent) 
+            FROM time_tracking 
+            WHERE record_id = ? AND time_spent IS NOT NULL
+        ''', (record_id,))
+    
+    result = c.fetchone()
+    total_time = result[0] if result[0] else 0
+    conn.close()
+    return total_time
+
+def get_current_status_time(record_id):
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    c.execute('''
+        SELECT status, start_time 
+        FROM time_tracking 
+        WHERE record_id = ? AND end_time IS NULL
+    ''', (record_id,))
+    
+    result = c.fetchone()
+    conn.close()
+    
+    if result:
+        status = result[0]
+        start_time = datetime.strptime(result[1], '%Y-%m-%d %H:%M:%S')
+        current_time = datetime.now()
+        time_spent = (current_time - start_time).total_seconds() / 3600  # Convert to hours
+        return {'status': status, 'time_spent': round(time_spent, 2)}
+    
+    return None
+
 def delete_record(record_id):
     conn = sqlite3.connect('time_tracker.db')
     c = conn.cursor()
@@ -360,3 +400,31 @@ def delete_record(record_id):
         conn.close()
     
     return success
+
+def get_records_count(user_role=None, username=None, status=None, search=None):
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    query = "SELECT COUNT(*) FROM records r JOIN users u ON r.created_by = u.username"
+    params = []
+    conditions = []
+    
+    if user_role == 'developer' and username:
+        conditions.append("(r.developer_assignee = ? OR r.developer_assignee IS NULL)")
+        params.append(username)
+    
+    if status:
+        conditions.append("r.status = ?")
+        params.append(status)
+    
+    if search:
+        conditions.append("(r.task LIKE ? OR r.book_id LIKE ? OR r.developer_assignee LIKE ?)")
+        params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
+    
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    
+    c.execute(query, params)
+    count = c.fetchone()[0]
+    conn.close()
+    return count

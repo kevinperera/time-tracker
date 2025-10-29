@@ -73,20 +73,34 @@
         <!-- Records List -->
         <div class="records-section">
             <h2>Records</h2>
-            <div class="filters">
-                <select id="statusFilter">
-                    <option value="">All Status</option>
-                    <option value="Backlog">Backlog</option>
-                    <option value="TODO">TODO</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="In Review">In Review</option>
-                    <option value="Published">Published</option>
-                </select>
-                {% if role == 'admin' %}
-                <button onclick="exportCSV()">Export CSV</button>
-                {% endif %}
+            
+            <!-- Search and Filters -->
+            <div class="search-filters">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search by task, book ID, or developer...">
+                    <span class="search-icon">🔍</span>
+                </div>
+                <div class="filter-group">
+                    <select id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="Backlog">Backlog</option>
+                        <option value="TODO">TODO</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="In Review">In Review</option>
+                        <option value="Published">Published</option>
+                    </select>
+                    {% if role == 'admin' %}
+                    <button onclick="exportCSV()">Export CSV</button>
+                    {% endif %}
+                </div>
             </div>
+            
             <div id="recordsContainer"></div>
+            
+            <!-- Pagination -->
+            <div class="pagination" id="paginationContainer">
+                <!-- Pagination will be inserted here by JavaScript -->
+            </div>
         </div>
     </div>
 

@@ -2,6 +2,12 @@
 let currentUserRole = '';
 let developers = [];
 let currentRecordId = null;
+let currentPage = 1;
+const recordsPerPage = 20;
+let totalRecords = 0;
+let totalPages = 1;
+let currentSearch = '';
+let currentStatusFilter = '';
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
@@ -20,7 +26,12 @@ async function initializeApp() {
     
     const statusFilter = document.getElementById('statusFilter');
     if (statusFilter) {
-        statusFilter.addEventListener('change', loadRecords);
+        statusFilter.addEventListener('change', handleFilterChange);
+    }
+    
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(handleSearch, 500));
     }
     
     const editRecordForm = document.getElementById('editRecordForm');
@@ -53,6 +64,19 @@ function setupModal() {
             modal.style.display = 'none';
         }
     });
+}
+
+// Debounce function for search
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }
 
 // Load developers for assignee dropdown
@@ -92,13 +116,26 @@ async function loadDevelopers() {
 }
 
 // Load and display records
-async function loadRecords() {
+async function loadRecords(page = 1) {
     try {
+        currentPage = page;
         const statusFilter = document.getElementById('statusFilter')?.value || '';
-        let url = '/records';
+        const searchQuery = document.getElementById('searchInput')?.value || '';
+        
+        currentStatusFilter = statusFilter;
+        currentSearch = searchQuery;
+        
+        let url = `/records?page=${page}&limit=${recordsPerPage}`;
         if (statusFilter) {
-            url += `?status=${encodeURIComponent(statusFilter)}`;
+            url += `&status=${encodeURIComponent(statusFilter)}`;
         }
+        if (searchQuery) {
+            url += `&search=${encodeURIComponent(searchQuery)}`;
+        }
+        
+        // Show loading state
+        const container = document.getElementById('recordsContainer');
+        container.innerHTML = '<div class="loading">Loading records...</div>';
         
         const response = await fetch(url);
         const data = await response.json();
@@ -108,11 +145,63 @@ async function loadRecords() {
         }
         
         currentUserRole = data.user_role;
+        totalRecords = data.total_records;
+        totalPages = data.total_pages;
+        
         displayRecords(data.records, data.user_role);
+        displayPagination();
+        
     } catch (error) {
         console.error('Error loading records:', error);
         showMessage('Error loading records: ' + error.message, 'error');
     }
+}
+
+// Handle search input
+function handleSearch() {
+    currentPage = 1;
+    loadRecords(1);
+}
+
+// Handle filter change
+function handleFilterChange() {
+    currentPage = 1;
+    loadRecords(1);
+}
+
+// Display pagination
+function displayPagination() {
+    const container = document.getElementById('paginationContainer');
+    
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '';
+    
+    // Previous button
+    paginationHTML += `<button onclick="loadRecords(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>`;
+    
+    // Page numbers
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    
+    for (let i = startPage; i <= endPage; i++) {
+        if (i === currentPage) {
+            paginationHTML += `<button class="filter-active" disabled>${i}</button>`;
+        } else {
+            paginationHTML += `<button onclick="loadRecords(${i})">${i}</button>`;
+        }
+    }
+    
+    // Next button
+    paginationHTML += `<button onclick="loadRecords(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>`;
+    
+    // Page info
+    paginationHTML += `<div class="pagination-info">Page ${currentPage} of ${totalPages} (${totalRecords} total records)</div>`;
+    
+    container.innerHTML = paginationHTML;
 }
 
 // Display records in the container
@@ -129,18 +218,23 @@ function displayRecords(records, userRole) {
     // Add event listeners to action buttons
     addRecordEventListeners();
     
-    // Load time data for relevant records
-    loadTimeDataForRecords();
+    // Start real-time updates for current status times
+    startRealTimeUpdates();
 }
 
 // Create HTML for a record card
 function createRecordCard(record, userRole) {
     const canEdit = userRole === 'admin' || userRole === 'lead';
     const isAssignedDeveloper = record.developer_assignee && record.developer_assignee === sessionStorage.getItem('username');
-    const canChangeStatus = isAssignedDeveloper || canEdit;
+    const canChangeStatus = (isAssignedDeveloper || canEdit) && userRole !== 'developer';
+    const isDeveloper = userRole === 'developer';
+    
+    // Calculate progress percentages
+    const todoProgress = Math.min((record.time_todo / 24) * 100, 100); // 24 hours max for TODO
+    const inProgressProgress = Math.min((record.time_in_progress / 48) * 100, 100); // 48 hours max for In Progress
     
     return `
-        <div class="record-card ${record.eta_warning ? 'warning' : ''}" data-record-id="${record.id}">
+        <div class="record-card ${record.eta_warning ? 'warning' : ''} ${isDeveloper ? 'developer-restricted' : ''}" data-record-id="${record.id}">
             <div class="record-header">
                 <div class="record-title">${escapeHtml(record.task)}</div>
                 <div class="record-status-container">
@@ -177,18 +271,50 @@ function createRecordCard(record, userRole) {
                 ` : ''}
             </div>
             
-            ${record.status === 'In Progress' || record.status === 'TODO' ? `
-            <div class="time-tracker">
-                <div class="time-info">
-                    <strong>Time Spent:</strong> <span id="time-${record.id}">Loading...</span> hours
+            <!-- Enhanced Time Tracking -->
+            <div class="time-tracking-details">
+                ${record.time_todo > 0 ? `
+                <div class="time-metric todo">
+                    <div class="time-metric-label">
+                        <span class="status-indicator"></span>
+                        Time in TODO
+                    </div>
+                    <div class="time-metric-value">${record.time_todo.toFixed(2)} hours</div>
+                    <div class="progress-container">
+                        <div class="progress-label">Progress: ${todoProgress.toFixed(1)}%</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${todoProgress}%"></div>
+                        </div>
+                    </div>
                 </div>
-                ${record.status === 'In Progress' ? `
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progress-${record.id}" style="width: 0%"></div>
+                ` : ''}
+                
+                ${record.time_in_progress > 0 ? `
+                <div class="time-metric in-progress">
+                    <div class="time-metric-label">
+                        <span class="status-indicator"></span>
+                        Time in In Progress
+                    </div>
+                    <div class="time-metric-value">${record.time_in_progress.toFixed(2)} hours</div>
+                    <div class="progress-container">
+                        <div class="progress-label">Progress: ${inProgressProgress.toFixed(1)}%</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${inProgressProgress}%"></div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+                
+                ${record.current_status_time > 0 && (record.current_status === 'TODO' || record.current_status === 'In Progress') ? `
+                <div class="time-metric ${record.current_status.toLowerCase().replace(' ', '-')}">
+                    <div class="time-metric-label">
+                        <span class="status-indicator"></span>
+                        Current ${record.current_status} Time
+                    </div>
+                    <div class="time-metric-value">${record.current_status_time.toFixed(2)} hours (active)</div>
                 </div>
                 ` : ''}
             </div>
-            ` : ''}
             
             <div class="record-actions">
                 ${canChangeStatus ? `
@@ -206,10 +332,6 @@ function createRecordCard(record, userRole) {
                 ${canEdit ? `
                 <button class="edit-btn" data-record-id="${record.id}">Edit</button>
                 ` : ''}
-                
-                ${isAssignedDeveloper && record.status === 'In Progress' ? `
-                <button class="stop-timer-btn" data-record-id="${record.id}">Stop Work</button>
-                ` : ''}
             </div>
         </div>
     `;
@@ -226,11 +348,6 @@ function addRecordEventListeners() {
     document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', handleEditRecord);
     });
-    
-    // Stop timer button handlers
-    document.querySelectorAll('.stop-timer-btn').forEach(btn => {
-        btn.addEventListener('click', handleStopTimer);
-    });
 }
 
 // Handle status change
@@ -239,7 +356,7 @@ async function handleStatusChange(event) {
     const newStatus = event.target.value;
     
     try {
-        const response = await fetch(`/records/${recordId}/update`, {
+        const response = await fetch(`/records/${recordId}/status`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -254,12 +371,12 @@ async function handleStatusChange(event) {
         }
         
         showMessage('Status updated successfully', 'success');
-        await loadRecords(); // Reload to show updated status
+        await loadRecords(currentPage); // Reload to show updated status
         
     } catch (error) {
         console.error('Error updating status:', error);
         showMessage('Error updating status: ' + error.message, 'error');
-        await loadRecords(); // Reload to reset select
+        await loadRecords(currentPage); // Reload to reset select
     }
 }
 
@@ -293,7 +410,7 @@ async function handleCreateRecord(event) {
         
         showMessage('Record created successfully', 'success');
         document.getElementById('createRecordForm').reset();
-        await loadRecords();
+        await loadRecords(1); // Reload first page
         
     } catch (error) {
         console.error('Error creating record:', error);
@@ -381,7 +498,7 @@ async function handleEditRecordSubmit(event) {
         
         showMessage('Record updated successfully', 'success');
         closeEditRecordModal();
-        await loadRecords();
+        await loadRecords(currentPage);
         
     } catch (error) {
         console.error('Error updating record:', error);
@@ -416,7 +533,7 @@ async function handleDeleteRecord() {
         
         showMessage('Record deleted successfully', 'success');
         closeEditRecordModal();
-        await loadRecords();
+        await loadRecords(currentPage);
         
     } catch (error) {
         console.error('Error deleting record:', error);
@@ -424,63 +541,12 @@ async function handleDeleteRecord() {
     }
 }
 
-// Handle stop timer
-async function handleStopTimer(event) {
-    const recordId = event.target.dataset.recordId;
-    
-    try {
-        const response = await fetch(`/records/${recordId}/update`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ status: 'In Review' })
-        });
-        
-        const data = await response.json();
-        
-        if (data.error) {
-            throw new Error(data.error);
-        }
-        
-        showMessage('Work stopped and status updated to In Review', 'success');
-        await loadRecords();
-        
-    } catch (error) {
-        console.error('Error stopping timer:', error);
-        showMessage('Error stopping work: ' + error.message, 'error');
-    }
-}
-
-// Load time data for records
-async function loadTimeDataForRecords() {
-    const records = document.querySelectorAll('.record-card');
-    
-    for (const recordCard of records) {
-        const recordId = recordCard.dataset.recordId;
-        
-        try {
-            const response = await fetch(`/records/${recordId}/time`);
-            const timeData = await response.json();
-            
-            if (timeData && !timeData.error) {
-                const timeElement = document.getElementById(`time-${recordId}`);
-                const progressElement = document.getElementById(`progress-${recordId}`);
-                
-                if (timeElement) {
-                    timeElement.textContent = timeData.time_spent.toFixed(2);
-                }
-                
-                // Simulate progress bar (you might want to implement actual progress logic)
-                if (progressElement) {
-                    const progress = Math.min((timeData.time_spent / 8) * 100, 100); // Assuming 8 hours max
-                    progressElement.style.width = `${progress}%`;
-                }
-            }
-        } catch (error) {
-            console.error(`Error fetching time data for record ${recordId}:`, error);
-        }
-    }
+// Start real-time updates for current status times
+function startRealTimeUpdates() {
+    // Update current status times every 30 seconds
+    setInterval(async () => {
+        await loadRecords(currentPage);
+    }, 30000);
 }
 
 // Export CSV
@@ -545,23 +611,3 @@ function escapeHtml(unsafe) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
-
-// Countdown timer functionality (for ETA warnings)
-function updateCountdowns() {
-    document.querySelectorAll('.record-card').forEach(card => {
-        const etaElement = card.querySelector('[data-eta]');
-        if (etaElement) {
-            const eta = new Date(etaElement.dataset.eta);
-            const now = new Date();
-            const diffTime = eta - now;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            if (diffDays <= 2) {
-                card.classList.add('warning');
-            }
-        }
-    });
-}
-
-// Initialize countdown updates
-setInterval(updateCountdowns, 60000); // Update every minute
