@@ -1,6 +1,7 @@
 // Global variables
 let currentUserRole = '';
 let developers = [];
+let currentRecordId = null;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
@@ -22,14 +23,24 @@ async function initializeApp() {
         statusFilter.addEventListener('change', loadRecords);
     }
     
+    const editRecordForm = document.getElementById('editRecordForm');
+    if (editRecordForm) {
+        editRecordForm.addEventListener('submit', handleEditRecordSubmit);
+    }
+    
+    const deleteRecordBtn = document.getElementById('deleteRecordBtn');
+    if (deleteRecordBtn) {
+        deleteRecordBtn.addEventListener('click', handleDeleteRecord);
+    }
+    
     // Set up modal
     setupModal();
 }
 
 // Setup modal functionality
 function setupModal() {
-    const modal = document.getElementById('editModal');
-    const closeBtn = document.querySelector('.close');
+    const modal = document.getElementById('editRecordModal');
+    const closeBtn = modal.querySelector('.close');
     
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
@@ -47,18 +58,33 @@ function setupModal() {
 // Load developers for assignee dropdown
 async function loadDevelopers() {
     try {
-        const response = await fetch('/records');
+        const response = await fetch('/api/developers');
         const data = await response.json();
-        currentUserRole = data.user_role;
         
-        // Get developers list from users API (you might need to create this endpoint)
-        const devSelect = document.getElementById('developer_assignee');
-        if (devSelect) {
-            // For now, we'll populate from existing records
-            // In a real app, you'd have a separate users endpoint
-            devSelect.innerHTML = '<option value="">Select Developer</option>';
-            // This would be populated from a proper users endpoint
+        if (data.error) {
+            throw new Error(data.error);
         }
+        
+        developers = data.developers;
+        
+        // Populate developer dropdowns
+        const devSelects = [
+            document.getElementById('developer_assignee'),
+            document.getElementById('editDeveloperAssignee')
+        ];
+        
+        devSelects.forEach(select => {
+            if (select) {
+                select.innerHTML = '<option value="">Select Developer</option>';
+                developers.forEach(dev => {
+                    const option = document.createElement('option');
+                    option.value = dev.username;
+                    option.textContent = dev.username;
+                    select.appendChild(option);
+                });
+            }
+        });
+        
     } catch (error) {
         console.error('Error loading developers:', error);
         showMessage('Error loading developers', 'error');
@@ -81,6 +107,7 @@ async function loadRecords() {
             throw new Error(data.error);
         }
         
+        currentUserRole = data.user_role;
         displayRecords(data.records, data.user_role);
     } catch (error) {
         console.error('Error loading records:', error);
@@ -101,6 +128,9 @@ function displayRecords(records, userRole) {
     
     // Add event listeners to action buttons
     addRecordEventListeners();
+    
+    // Load time data for relevant records
+    loadTimeDataForRecords();
 }
 
 // Create HTML for a record card
@@ -201,9 +231,6 @@ function addRecordEventListeners() {
     document.querySelectorAll('.stop-timer-btn').forEach(btn => {
         btn.addEventListener('click', handleStopTimer);
     });
-    
-    // Load time data for relevant records
-    loadTimeDataForRecords();
 }
 
 // Handle status change
@@ -274,7 +301,7 @@ async function handleCreateRecord(event) {
     }
 }
 
-// Handle edit record
+// Handle edit record button click
 async function handleEditRecord(event) {
     const recordId = event.target.dataset.recordId;
     
@@ -286,7 +313,7 @@ async function handleEditRecord(event) {
             throw new Error(record.error);
         }
         
-        openEditModal(record);
+        openEditRecordModal(record);
         
     } catch (error) {
         console.error('Error loading record for edit:', error);
@@ -294,16 +321,107 @@ async function handleEditRecord(event) {
     }
 }
 
-// Open edit modal with record data
-function openEditModal(record) {
-    const modal = document.getElementById('editModal');
-    const form = document.getElementById('editRecordForm');
+// Open edit record modal with record data
+function openEditRecordModal(record) {
+    currentRecordId = record.id;
     
     // Populate form with record data
     document.getElementById('editRecordId').value = record.id;
-    // You would populate other form fields here
+    document.getElementById('editTask').value = record.task;
+    document.getElementById('editBookId').value = record.book_id;
+    document.getElementById('editDeveloperAssignee').value = record.developer_assignee || '';
+    document.getElementById('editPageCount').value = record.page_count || '';
+    document.getElementById('editOcr').value = record.ocr || '';
+    document.getElementById('editEta').value = record.eta || '';
+    document.getElementById('editStatus').value = record.status;
     
-    modal.style.display = 'block';
+    // Show the modal
+    document.getElementById('editRecordModal').style.display = 'block';
+}
+
+// Close edit record modal
+function closeEditRecordModal() {
+    document.getElementById('editRecordModal').style.display = 'none';
+    currentRecordId = null;
+}
+
+// Handle edit record form submission
+async function handleEditRecordSubmit(event) {
+    event.preventDefault();
+    
+    if (!currentRecordId) {
+        showMessage('No record selected for editing', 'error');
+        return;
+    }
+    
+    const formData = {
+        task: document.getElementById('editTask').value,
+        book_id: document.getElementById('editBookId').value,
+        developer_assignee: document.getElementById('editDeveloperAssignee').value || null,
+        page_count: document.getElementById('editPageCount').value ? parseInt(document.getElementById('editPageCount').value) : null,
+        ocr: document.getElementById('editOcr').value || null,
+        eta: document.getElementById('editEta').value || null,
+        status: document.getElementById('editStatus').value
+    };
+    
+    try {
+        const response = await fetch(`/records/${currentRecordId}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        showMessage('Record updated successfully', 'success');
+        closeEditRecordModal();
+        await loadRecords();
+        
+    } catch (error) {
+        console.error('Error updating record:', error);
+        showMessage('Error updating record: ' + error.message, 'error');
+    }
+}
+
+// Handle delete record
+async function handleDeleteRecord() {
+    if (!currentRecordId) {
+        showMessage('No record selected for deletion', 'error');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to delete this record? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/records/${currentRecordId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        showMessage('Record deleted successfully', 'success');
+        closeEditRecordModal();
+        await loadRecords();
+        
+    } catch (error) {
+        console.error('Error deleting record:', error);
+        showMessage('Error deleting record: ' + error.message, 'error');
+    }
 }
 
 // Handle stop timer
@@ -340,33 +458,28 @@ async function loadTimeDataForRecords() {
     
     for (const recordCard of records) {
         const recordId = recordCard.dataset.recordId;
-        const record = await getRecordTime(recordId);
         
-        if (record) {
-            const timeElement = document.getElementById(`time-${recordId}`);
-            const progressElement = document.getElementById(`progress-${recordId}`);
+        try {
+            const response = await fetch(`/records/${recordId}/time`);
+            const timeData = await response.json();
             
-            if (timeElement) {
-                timeElement.textContent = record.time_spent.toFixed(2);
+            if (timeData && !timeData.error) {
+                const timeElement = document.getElementById(`time-${recordId}`);
+                const progressElement = document.getElementById(`progress-${recordId}`);
+                
+                if (timeElement) {
+                    timeElement.textContent = timeData.time_spent.toFixed(2);
+                }
+                
+                // Simulate progress bar (you might want to implement actual progress logic)
+                if (progressElement) {
+                    const progress = Math.min((timeData.time_spent / 8) * 100, 100); // Assuming 8 hours max
+                    progressElement.style.width = `${progress}%`;
+                }
             }
-            
-            // Simulate progress bar (you might want to implement actual progress logic)
-            if (progressElement) {
-                const progress = Math.min((record.time_spent / 8) * 100, 100); // Assuming 8 hours max
-                progressElement.style.width = `${progress}%`;
-            }
+        } catch (error) {
+            console.error(`Error fetching time data for record ${recordId}:`, error);
         }
-    }
-}
-
-// Get time data for a specific record
-async function getRecordTime(recordId) {
-    try {
-        const response = await fetch(`/records/${recordId}/time`);
-        return await response.json();
-    } catch (error) {
-        console.error('Error fetching time data:', error);
-        return null;
     }
 }
 

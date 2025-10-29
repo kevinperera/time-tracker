@@ -148,7 +148,11 @@ def delete_user_route():
 @app.route('/records')
 @login_required
 def get_records_route():
-    records = get_records(user_role=session['role'], username=session['username'])
+    status_filter = request.args.get('status', '')
+    user_role = session['role']
+    username = session['username']
+    
+    records = get_records(user_role=user_role, username=username, status=status_filter)
     
     # Add ETA warning for records
     for record in records:
@@ -162,7 +166,7 @@ def get_records_route():
         else:
             record['eta_warning'] = False
     
-    return jsonify({'records': records, 'user_role': session['role']})
+    return jsonify({'records': records, 'user_role': user_role})
 
 @app.route('/records/create', methods=['POST'])
 @login_required
@@ -181,32 +185,58 @@ def create_record_route():
     record_id = create_record(task, book_id, session['username'], developer_assignee, page_count, ocr, eta)
     return jsonify({'message': 'Record created successfully', 'record_id': record_id})
 
-@app.route('/records/<int:record_id>/update', methods=['POST'])
-@login_required
-def update_record_route(record_id):
-    data = request.json
-    
-    # Developers can only update status
-    if session['role'] == 'developer':
-        if 'status' in data:
-            record = get_record_by_id(record_id)
-            if record and record['developer_assignee'] == session['username']:
-                log_time_tracking(record_id, session['username'], record['status'], data['status'])
-                update_record(record_id, status=data['status'])
-                return jsonify({'message': 'Status updated successfully'})
-        return jsonify({'error': 'Access denied'}), 403
-    
-    # Admin and Lead can update all fields
-    update_record(record_id, **data)
-    return jsonify({'message': 'Record updated successfully'})
-
 @app.route('/records/<int:record_id>')
 @login_required
 def get_record_route(record_id):
     record = get_record_by_id(record_id)
     if not record:
         return jsonify({'error': 'Record not found'}), 404
+    
+    # Check if user has permission to view this record
+    user_role = session['role']
+    username = session['username']
+    
+    if user_role == 'developer' and record['developer_assignee'] != username:
+        return jsonify({'error': 'Access denied'}), 403
+    
     return jsonify(record)
+
+@app.route('/records/<int:record_id>/update', methods=['POST'])
+@login_required
+def update_record_route(record_id):
+    data = request.json
+    
+    # Check if user has permission to edit this record
+    record = get_record_by_id(record_id)
+    if not record:
+        return jsonify({'error': 'Record not found'}), 404
+    
+    user_role = session['role']
+    username = session['username']
+    
+    # Developers can only update status of their assigned records
+    if user_role == 'developer':
+        if 'status' in data and record['developer_assignee'] == username:
+            log_time_tracking(record_id, username, record['status'], data['status'])
+            update_record(record_id, status=data['status'])
+            return jsonify({'message': 'Status updated successfully'})
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # Admin and Lead can update all fields
+    if user_role in ['admin', 'lead']:
+        update_record(record_id, **data)
+        return jsonify({'message': 'Record updated successfully'})
+    
+    return jsonify({'error': 'Access denied'}), 403
+
+@app.route('/records/<int:record_id>/delete', methods=['POST'])
+@login_required
+@role_required(['admin', 'lead'])
+def delete_record_route(record_id):
+    if delete_record(record_id):
+        return jsonify({'message': 'Record deleted successfully'})
+    else:
+        return jsonify({'error': 'Failed to delete record'}), 400
 
 @app.route('/records/<int:record_id>/time')
 @login_required
@@ -217,6 +247,12 @@ def get_record_time_route(record_id):
     
     time_spent = get_time_spent(record_id, record['developer_assignee']) if record['developer_assignee'] else 0
     return jsonify({'time_spent': time_spent})
+
+@app.route('/api/developers')
+@login_required
+def get_developers_route():
+    developers = get_users(role='developer')
+    return jsonify({'developers': developers})
 
 @app.route('/export/csv')
 @login_required

@@ -342,3 +342,21 @@ def delete_user(username):
         conn.close()
     
     return success
+
+def delete_record(record_id):
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    try:
+        # First delete related time tracking records
+        c.execute("DELETE FROM time_tracking WHERE record_id = ?", (record_id,))
+        # Then delete the record
+        c.execute("DELETE FROM records WHERE id = ?", (record_id,))
+        conn.commit()
+        success = True
+    except sqlite3.Error:
+        success = False
+    finally:
+        conn.close()
+    
+    return success

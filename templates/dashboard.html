@@ -8,13 +8,15 @@
 </head>
 <body>
     <div class="header">
-        <h1>Time Tracker</h1>
-        <div class="user-info">
-            Welcome, {{ username }} ({{ role }}) | 
-            {% if role == 'admin' %}
-            <a href="/admin/users">User Management</a> |
-            {% endif %}
-            <a href="/logout">Logout</a>
+        <div class="header-content">
+            <h1>Time Tracker</h1>
+            <div class="user-info">
+                Welcome, {{ username }} ({{ role }}) | 
+                {% if role == 'admin' %}
+                <a href="/admin/users">User Management</a> |
+                {% endif %}
+                <a href="/logout">Logout</a>
+            </div>
         </div>
     </div>
 
@@ -89,13 +91,70 @@
     </div>
 
     <!-- Edit Record Modal -->
-    <div id="editModal" class="modal">
+    <div id="editRecordModal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
+            <span class="close" onclick="closeEditRecordModal()">&times;</span>
             <h2>Edit Record</h2>
-            <form id="editRecordForm">
+            <form id="editRecordForm" class="edit-record-form">
                 <input type="hidden" id="editRecordId">
-                <!-- Form fields similar to create form -->
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editTask">Task *</label>
+                        <input type="text" id="editTask" name="task" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editBookId">Book ID *</label>
+                        <input type="text" id="editBookId" name="book_id" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editDeveloperAssignee">Developer Assignee</label>
+                        <select id="editDeveloperAssignee" name="developer_assignee">
+                            <option value="">Select Developer</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editPageCount">Page Count</label>
+                        <input type="number" id="editPageCount" name="page_count" min="1">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editOcr">OCR</label>
+                        <select id="editOcr" name="ocr">
+                            <option value="">Select</option>
+                            <option value="yes">Yes</option>
+                            <option value="no">No</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEta">ETA</label>
+                        <input type="date" id="editEta" name="eta">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editStatus">Status</label>
+                        <select id="editStatus" name="status" required>
+                            <option value="Backlog">Backlog</option>
+                            <option value="TODO">TODO</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="In Review">In Review</option>
+                            <option value="Published">Published</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn" onclick="closeEditRecordModal()">Cancel</button>
+                    <button type="button" class="delete-record-btn" id="deleteRecordBtn">Delete Record</button>
+                    <button type="submit">Update Record</button>
+                </div>
             </form>
         </div>
     </div>
