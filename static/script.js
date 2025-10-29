@@ -8,6 +8,7 @@ let totalRecords = 0;
 let totalPages = 1;
 let currentSearch = '';
 let currentStatusFilter = '';
+let isLoading = false;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
@@ -116,9 +117,11 @@ async function loadDevelopers() {
 }
 
 // Load and display records
-// Load and display records
 async function loadRecords(page = 1) {
+    if (isLoading) return;
+    
     try {
+        isLoading = true;
         currentPage = page;
         const statusFilter = document.getElementById('statusFilter')?.value || '';
         const searchQuery = document.getElementById('searchInput')?.value || '';
@@ -134,25 +137,17 @@ async function loadRecords(page = 1) {
             url += `&search=${encodeURIComponent(searchQuery)}`;
         }
         
-        // Show loading state
-        const container = document.getElementById('recordsContainer');
-        container.innerHTML = '<div class="loading">Loading records...</div>';
-        
         const response = await fetch(url);
         
         // Check if response is JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-            // If not JSON, we might be getting an HTML error page
             const text = await response.text();
-            console.error('Non-JSON response:', text.substring(0, 200));
-            
             if (response.status === 401) {
-                // Redirect to login if unauthorized
                 window.location.href = '/login';
                 return;
             }
-            throw new Error('Server returned non-JSON response. Please check authentication.');
+            throw new Error('Server returned non-JSON response');
         }
         
         const data = await response.json();
@@ -174,17 +169,12 @@ async function loadRecords(page = 1) {
         
     } catch (error) {
         console.error('Error loading records:', error);
-        const container = document.getElementById('recordsContainer');
-        container.innerHTML = `
-            <div class="error-message">
-                Error loading records: ${error.message}
-                <br><br>
-                <button onclick="location.reload()">Reload Page</button>
-                <button onclick="window.location.href='/logout'">Logout</button>
-            </div>
-        `;
+        showMessage('Error loading records: ' + error.message, 'error');
+    } finally {
+        isLoading = false;
     }
 }
+
 // Handle search input
 function handleSearch() {
     currentPage = 1;
@@ -241,28 +231,27 @@ function displayRecords(records, userRole) {
         return;
     }
     
-    container.innerHTML = records.map(record => createRecordCard(record, userRole)).join('');
-    
-    // Add event listeners to action buttons
-    addRecordEventListeners();
-    
-    // Start real-time updates for current status times
-    startRealTimeUpdates();
+    // Use requestAnimationFrame for smooth rendering
+    requestAnimationFrame(() => {
+        container.innerHTML = records.map(record => createRecordCard(record, userRole)).join('');
+        
+        // Add event listeners to action buttons
+        addRecordEventListeners();
+    });
 }
 
 // Create HTML for a record card
 function createRecordCard(record, userRole) {
     const canEdit = userRole === 'admin' || userRole === 'lead';
     const isAssignedDeveloper = record.developer_assignee && record.developer_assignee === sessionStorage.getItem('username');
-    const canChangeStatus = (isAssignedDeveloper || canEdit) && userRole !== 'developer';
-    const isDeveloper = userRole === 'developer';
+    const canChangeStatus = (isAssignedDeveloper && userRole === 'developer') || canEdit;
     
     // Calculate progress percentages
     const todoProgress = Math.min((record.time_todo / 24) * 100, 100); // 24 hours max for TODO
     const inProgressProgress = Math.min((record.time_in_progress / 48) * 100, 100); // 48 hours max for In Progress
     
     return `
-        <div class="record-card ${record.eta_warning ? 'warning' : ''} ${isDeveloper ? 'developer-restricted' : ''}" data-record-id="${record.id}">
+        <div class="record-card ${record.eta_warning ? 'warning' : ''}" data-record-id="${record.id}">
             <div class="record-header">
                 <div class="record-title">${escapeHtml(record.task)}</div>
                 <div class="record-status-container">
@@ -301,45 +290,57 @@ function createRecordCard(record, userRole) {
             
             <!-- Enhanced Time Tracking -->
             <div class="time-tracking-details">
-                ${record.time_todo > 0 ? `
+                ${record.time_todo > 0 || record.status === 'TODO' ? `
                 <div class="time-metric todo">
-                    <div class="time-metric-label">
-                        <span class="status-indicator"></span>
-                        Time in TODO
+                    <div class="time-metric-header">
+                        <div class="time-metric-label">
+                            <span class="status-indicator"></span>
+                            Time in TODO
+                        </div>
+                        <button class="refresh-btn" onclick="refreshRecordTime(${record.id})">
+                            🔄 Refresh
+                        </button>
                     </div>
                     <div class="time-metric-value">${record.time_todo.toFixed(2)} hours</div>
+                    ${record.status === 'TODO' ? `
                     <div class="progress-container">
-                        <div class="progress-label">Progress: ${todoProgress.toFixed(1)}%</div>
+                        <div class="progress-header">
+                            <div class="progress-label">Progress</div>
+                            <div class="progress-percentage">${todoProgress.toFixed(1)}%</div>
+                        </div>
                         <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${todoProgress}%"></div>
+                            <div class="progress-fill todo" style="width: ${todoProgress}%"></div>
                         </div>
                     </div>
+                    ` : ''}
+                    <div class="time-details">Time calculated since status was set to TODO</div>
                 </div>
                 ` : ''}
                 
-                ${record.time_in_progress > 0 ? `
+                ${record.time_in_progress > 0 || record.status === 'In Progress' ? `
                 <div class="time-metric in-progress">
-                    <div class="time-metric-label">
-                        <span class="status-indicator"></span>
-                        Time in In Progress
+                    <div class="time-metric-header">
+                        <div class="time-metric-label">
+                            <span class="status-indicator"></span>
+                            Time in In Progress
+                        </div>
+                        <button class="refresh-btn" onclick="refreshRecordTime(${record.id})">
+                            🔄 Refresh
+                        </button>
                     </div>
                     <div class="time-metric-value">${record.time_in_progress.toFixed(2)} hours</div>
+                    ${record.status === 'In Progress' ? `
                     <div class="progress-container">
-                        <div class="progress-label">Progress: ${inProgressProgress.toFixed(1)}%</div>
+                        <div class="progress-header">
+                            <div class="progress-label">Progress</div>
+                            <div class="progress-percentage">${inProgressProgress.toFixed(1)}%</div>
+                        </div>
                         <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${inProgressProgress}%"></div>
+                            <div class="progress-fill in-progress" style="width: ${inProgressProgress}%"></div>
                         </div>
                     </div>
-                </div>
-                ` : ''}
-                
-                ${record.current_status_time > 0 && (record.current_status === 'TODO' || record.current_status === 'In Progress') ? `
-                <div class="time-metric ${record.current_status.toLowerCase().replace(' ', '-')}">
-                    <div class="time-metric-label">
-                        <span class="status-indicator"></span>
-                        Current ${record.current_status} Time
-                    </div>
-                    <div class="time-metric-value">${record.current_status_time.toFixed(2)} hours (active)</div>
+                    ` : ''}
+                    <div class="time-details">Time calculated since status was set to In Progress</div>
                 </div>
                 ` : ''}
             </div>
@@ -347,7 +348,7 @@ function createRecordCard(record, userRole) {
             <div class="record-actions">
                 ${canChangeStatus ? `
                 <select class="status-select" data-record-id="${record.id}">
-                    <option value="Backlog" ${record.status === 'Backlog' ? 'selected' : ''}>Backlog</option>
+                    ${userRole === 'developer' ? '<option value="" disabled>Backlog</option>' : '<option value="Backlog" ' + (record.status === 'Backlog' ? 'selected' : '') + '>Backlog</option>'}
                     <option value="TODO" ${record.status === 'TODO' ? 'selected' : ''}>TODO</option>
                     <option value="In Progress" ${record.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
                     <option value="In Review" ${record.status === 'In Review' ? 'selected' : ''}>In Review</option>
@@ -405,6 +406,17 @@ async function handleStatusChange(event) {
         console.error('Error updating status:', error);
         showMessage('Error updating status: ' + error.message, 'error');
         await loadRecords(currentPage); // Reload to reset select
+    }
+}
+
+// Refresh time for a specific record
+async function refreshRecordTime(recordId) {
+    try {
+        await loadRecords(currentPage);
+        showMessage('Time refreshed successfully', 'success');
+    } catch (error) {
+        console.error('Error refreshing time:', error);
+        showMessage('Error refreshing time', 'error');
     }
 }
 
@@ -567,14 +579,6 @@ async function handleDeleteRecord() {
         console.error('Error deleting record:', error);
         showMessage('Error deleting record: ' + error.message, 'error');
     }
-}
-
-// Start real-time updates for current status times
-function startRealTimeUpdates() {
-    // Update current status times every 30 seconds
-    setInterval(async () => {
-        await loadRecords(currentPage);
-    }, 30000);
 }
 
 // Export CSV

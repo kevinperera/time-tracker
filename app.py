@@ -313,9 +313,12 @@ def update_record_status_route(record_id):
         user_role = session['role']
         username = session['username']
         
-        # Developers can only update status of their assigned records
+        # Developers can update status of their assigned records (except Backlog)
         if user_role == 'developer':
             if record['developer_assignee'] == username:
+                # Developers cannot set status to Backlog
+                if new_status == 'Backlog':
+                    return jsonify({'error': 'Developers cannot set status to Backlog'}), 403
                 update_record(record_id, status=new_status)
                 return jsonify({'message': 'Status updated successfully'})
             else:

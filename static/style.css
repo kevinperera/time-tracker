@@ -970,11 +970,7 @@ button:disabled {
     color: white !important;
 }
 
-/* Developer restricted styles */
-.developer-restricted .edit-btn,
-.developer-restricted .status-select {
-    display: none;
-}
+
 
 /* Loading animation */
 .loading {
