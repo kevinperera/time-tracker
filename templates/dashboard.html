@@ -11,7 +11,7 @@
     <div class="header">
         <div class="header-content">
             <div class="logo-section">
-                <div class="logo">CONTENT CAPTURE TEAM PDF</div>
+                <div class="logo">TimeTracker Pro</div>
                 <div class="tagline">Efficient Task Management</div>
             </div>
             
@@ -44,54 +44,14 @@
     </div>
 
     <div class="container">
-        <!-- Create Record Form (Admin and Lead only) -->
-        {% if role in ['admin', 'lead'] %}
-        <div class="form-section">
-            <h2>Create New Record</h2>
-            <form id="createRecordForm">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="task">Task *</label>
-                        <input type="text" id="task" name="task" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="book_id">Book ID *</label>
-                        <input type="text" id="book_id" name="book_id" required>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="developer_assignee">Developer Assignee</label>
-                        <select id="developer_assignee" name="developer_assignee">
-                            <option value="">Select Developer</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="page_count">Page Count</label>
-                        <input type="number" id="page_count" name="page_count" min="1">
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="ocr">OCR</label>
-                        <select id="ocr" name="ocr">
-                            <option value="">Select</option>
-                            <option value="yes">Yes</option>
-                            <option value="no">No</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="eta">ETA</label>
-                        <input type="date" id="eta" name="eta">
-                    </div>
-                </div>
-                
-                <button type="submit">Create Record</button>
-            </form>
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            {% if role in ['admin', 'lead'] %}
+            <button class="create-record-btn" onclick="openCreateRecordModal()">
+                ➕ Create New Record
+            </button>
+            {% endif %}
         </div>
-        {% endif %}
 
         <!-- Records List -->
         <div class="records-section">
@@ -124,6 +84,59 @@
             <div class="pagination" id="paginationContainer">
                 <!-- Pagination will be inserted here by JavaScript -->
             </div>
+        </div>
+    </div>
+
+    <!-- Create Record Modal -->
+    <div id="createRecordModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCreateRecordModal()">&times;</span>
+            <h2>Create New Record</h2>
+            <form id="createRecordForm" class="create-record-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="createTask">Task *</label>
+                        <input type="text" id="createTask" name="task" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="createBookId">Book ID *</label>
+                        <input type="text" id="createBookId" name="book_id" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="createDeveloperAssignee">Developer Assignee</label>
+                        <select id="createDeveloperAssignee" name="developer_assignee">
+                            <option value="">Select Developer</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="createPageCount">Page Count</label>
+                        <input type="number" id="createPageCount" name="page_count" min="1">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="createOcr">OCR</label>
+                        <select id="createOcr" name="ocr">
+                            <option value="">Select</option>
+                            <option value="yes">Yes</option>
+                            <option value="no">No</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="createEta">ETA</label>
+                        <input type="date" id="createEta" name="eta">
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="cancel-btn" onclick="closeCreateRecordModal()">Cancel</button>
+                    <button type="submit">Create Record</button>
+                </div>
+            </form>
         </div>
     </div>
 

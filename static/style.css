@@ -1162,3 +1162,82 @@ button:disabled {
         border: 1px solid #ccc;
     }
 }
+
+/* Quick Actions */
+.quick-actions {
+    margin-bottom: 30px;
+    display: flex;
+    gap: 15px;
+}
+
+.create-record-btn {
+    background: linear-gradient(135deg, #27ae60, #229954);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.create-record-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+.create-record-btn:active {
+    transform: translateY(0);
+}
+
+/* Create Record Form Styles */
+.create-record-form .form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.create-record-form .form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.create-record-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #555;
+}
+
+.create-record-form input,
+.create-record-form select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e1e8ed;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.create-record-form input:focus,
+.create-record-form select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* Developer Status Styles */
+.developer-status-enabled .status-select {
+    display: block !important;
+}
+
+.status-select:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    cursor: not-allowed;
+}

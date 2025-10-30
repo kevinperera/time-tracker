@@ -45,26 +45,56 @@ async function initializeApp() {
         deleteRecordBtn.addEventListener('click', handleDeleteRecord);
     }
     
-    // Set up modal
-    setupModal();
+    // Set up modals
+    setupModals();
 }
 
 // Setup modal functionality
-function setupModal() {
-    const modal = document.getElementById('editRecordModal');
-    const closeBtn = modal.querySelector('.close');
+function setupModals() {
+    // Create Record Modal
+    const createModal = document.getElementById('createRecordModal');
+    const createCloseBtn = createModal.querySelector('.close');
     
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
+    if (createCloseBtn) {
+        createCloseBtn.addEventListener('click', () => {
+            createModal.style.display = 'none';
         });
     }
     
+    // Edit Record Modal
+    const editModal = document.getElementById('editRecordModal');
+    const editCloseBtn = editModal.querySelector('.close');
+    
+    if (editCloseBtn) {
+        editCloseBtn.addEventListener('click', () => {
+            editModal.style.display = 'none';
+        });
+    }
+    
+    // Close modals when clicking outside
     window.addEventListener('click', (event) => {
-        if (event.target === modal) {
-            modal.style.display = 'none';
+        if (event.target === createModal) {
+            createModal.style.display = 'none';
+        }
+        if (event.target === editModal) {
+            editModal.style.display = 'none';
         }
     });
+}
+
+// Open Create Record Modal
+function openCreateRecordModal() {
+    const modal = document.getElementById('createRecordModal');
+    modal.style.display = 'block';
+    
+    // Reset form
+    document.getElementById('createRecordForm').reset();
+}
+
+// Close Create Record Modal
+function closeCreateRecordModal() {
+    const modal = document.getElementById('createRecordModal');
+    modal.style.display = 'none';
 }
 
 // Debounce function for search
@@ -94,7 +124,7 @@ async function loadDevelopers() {
         
         // Populate developer dropdowns
         const devSelects = [
-            document.getElementById('developer_assignee'),
+            document.getElementById('createDeveloperAssignee'),
             document.getElementById('editDeveloperAssignee')
         ];
         
@@ -251,7 +281,7 @@ function createRecordCard(record, userRole) {
     const inProgressProgress = Math.min((record.time_in_progress / 48) * 100, 100); // 48 hours max for In Progress
     
     return `
-        <div class="record-card ${record.eta_warning ? 'warning' : ''}" data-record-id="${record.id}">
+        <div class="record-card ${record.eta_warning ? 'warning' : ''} ${canChangeStatus ? 'developer-status-enabled' : ''}" data-record-id="${record.id}">
             <div class="record-header">
                 <div class="record-title">${escapeHtml(record.task)}</div>
                 <div class="record-status-container">
@@ -348,7 +378,7 @@ function createRecordCard(record, userRole) {
             <div class="record-actions">
                 ${canChangeStatus ? `
                 <select class="status-select" data-record-id="${record.id}">
-                    ${userRole === 'developer' ? '<option value="" disabled>Backlog</option>' : '<option value="Backlog" ' + (record.status === 'Backlog' ? 'selected' : '') + '>Backlog</option>'}
+                    ${userRole === 'developer' ? '<option value="Backlog" disabled>Backlog</option>' : '<option value="Backlog" ' + (record.status === 'Backlog' ? 'selected' : '') + '>Backlog</option>'}
                     <option value="TODO" ${record.status === 'TODO' ? 'selected' : ''}>TODO</option>
                     <option value="In Progress" ${record.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
                     <option value="In Review" ${record.status === 'In Review' ? 'selected' : ''}>In Review</option>
@@ -425,12 +455,12 @@ async function handleCreateRecord(event) {
     event.preventDefault();
     
     const formData = {
-        task: document.getElementById('task').value,
-        book_id: document.getElementById('book_id').value,
-        developer_assignee: document.getElementById('developer_assignee').value || null,
-        page_count: document.getElementById('page_count').value ? parseInt(document.getElementById('page_count').value) : null,
-        ocr: document.getElementById('ocr').value || null,
-        eta: document.getElementById('eta').value || null
+        task: document.getElementById('createTask').value,
+        book_id: document.getElementById('createBookId').value,
+        developer_assignee: document.getElementById('createDeveloperAssignee').value || null,
+        page_count: document.getElementById('createPageCount').value ? parseInt(document.getElementById('createPageCount').value) : null,
+        ocr: document.getElementById('createOcr').value || null,
+        eta: document.getElementById('createEta').value || null
     };
     
     try {
@@ -449,7 +479,7 @@ async function handleCreateRecord(event) {
         }
         
         showMessage('Record created successfully', 'success');
-        document.getElementById('createRecordForm').reset();
+        closeCreateRecordModal();
         await loadRecords(1); // Reload first page
         
     } catch (error) {
