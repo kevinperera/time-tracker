@@ -286,17 +286,21 @@ function displayRecords(records, userRole) {
 }
 
 // Create HTML for a record card
+// Create HTML for a record card
 function createRecordCard(record, userRole) {
     const canEdit = userRole === 'admin' || userRole === 'lead';
-    const isAssignedDeveloper = record.developer_assignee && record.developer_assignee === sessionStorage.getItem('username');
+    const isAssignedDeveloper = record.developer_assignee && record.developer_assignee === '{{ username }}';
     const canChangeStatus = (isAssignedDeveloper && userRole === 'developer') || canEdit;
     
     // Calculate progress percentages
     const todoProgress = Math.min((record.time_todo / 24) * 100, 100); // 24 hours max for TODO
     const inProgressProgress = Math.min((record.time_in_progress / 48) * 100, 100); // 48 hours max for In Progress
     
+    // Debug logging
+    console.log('Record:', record.id, 'Developer:', record.developer_assignee, 'Current User:', '{{ username }}', 'Can Change Status:', canChangeStatus);
+    
     return `
-        <div class="record-card ${record.eta_warning ? 'warning' : ''} ${canChangeStatus ? 'developer-status-enabled' : ''}" data-record-id="${record.id}">
+        <div class="record-card ${record.eta_warning ? 'warning' : ''}" data-record-id="${record.id}">
             <div class="record-header">
                 <div class="record-title">${escapeHtml(record.task)}</div>
                 <div class="record-status-container">
@@ -400,7 +404,7 @@ function createRecordCard(record, userRole) {
                     <option value="Published" ${record.status === 'Published' ? 'selected' : ''}>Published</option>
                 </select>
                 ` : `
-                <span>Status: ${record.status}</span>
+                <span class="status-text">Status: ${record.status}</span>
                 `}
                 
                 ${canEdit ? `

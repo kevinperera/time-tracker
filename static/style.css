@@ -1245,7 +1245,7 @@ button:disabled {
 }
 
 /* Developer Status Styles */
-.developer-status-enabled .status-select {
+.developer-status-enabled {
     display: block !important;
 }
 
@@ -1253,4 +1253,24 @@ button:disabled {
     background-color: #f8f9fa;
     color: #6c757d;
     cursor: not-allowed;
+}
+
+.status-select {
+    display: block !important;
+    padding: 6px 10px;
+    border: 2px solid #e1e8ed;
+    border-radius: 6px;
+    background: white;
+    color: #333;
+    min-width: 120px;
+}
+
+.status-text {
+    color: #7f8c8d;
+    font-size: 0.9em;
+}
+
+/* Remove any hiding styles for developer status */
+.developer-restricted .status-select {
+    display: block !important;
 }

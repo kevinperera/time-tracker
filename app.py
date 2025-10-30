@@ -313,15 +313,21 @@ def update_record_status_route(record_id):
         user_role = session['role']
         username = session['username']
         
+        print(f"DEBUG: User {username} (role: {user_role}) trying to update record {record_id} status to {new_status}")
+        print(f"DEBUG: Record developer: {record.get('developer_assignee')}")
+        
         # Developers can update status of their assigned records (except Backlog)
         if user_role == 'developer':
-            if record['developer_assignee'] == username:
+            # Check if developer is assigned to this record
+            if record.get('developer_assignee') == username:
                 # Developers cannot set status to Backlog
                 if new_status == 'Backlog':
                     return jsonify({'error': 'Developers cannot set status to Backlog'}), 403
+                print(f"DEBUG: Developer {username} is assigned to record, updating status")
                 update_record(record_id, status=new_status)
                 return jsonify({'message': 'Status updated successfully'})
             else:
+                print(f"DEBUG: Developer {username} is NOT assigned to record {record_id}")
                 return jsonify({'error': 'Access denied - You can only update status of your assigned records'}), 403
         
         # Admin and Lead can update status of any record
@@ -331,6 +337,7 @@ def update_record_status_route(record_id):
         
         return jsonify({'error': 'Access denied'}), 403
     except Exception as e:
+        print(f"DEBUG: Error in status update: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/records/<int:record_id>/delete', methods=['POST'])
