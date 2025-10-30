@@ -1,5 +1,6 @@
 // Global variables
 let currentUserRole = '';
+let currentUsername = '';
 let developers = [];
 let currentRecordId = null;
 let currentPage = 1;
@@ -13,6 +14,21 @@ let isLoading = false;
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing app...');
+    
+    // Get current username from the page
+    const userElement = document.querySelector('.user-name');
+    if (userElement) {
+        currentUsername = userElement.textContent.trim();
+    }
+    
+    // Get current role from the page
+    const roleElement = document.querySelector('.user-role');
+    if (roleElement) {
+        currentUserRole = roleElement.textContent.trim().toLowerCase();
+    }
+    
+    console.log('Current user:', currentUsername, 'Role:', currentUserRole);
+    
     initializeApp();
 });
 
@@ -110,6 +126,9 @@ function openCreateRecordModal() {
         if (form) {
             form.reset();
         }
+        
+        // Ensure developers are loaded
+        loadDevelopers();
     } else {
         console.log('Create record modal not found');
     }
@@ -207,35 +226,28 @@ async function loadRecords(page = 1) {
         
         const response = await fetch(url);
         
-        // Check if response is JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            console.error('Non-JSON response:', text.substring(0, 200));
-            
+        if (!response.ok) {
             if (response.status === 401) {
                 window.location.href = '/login';
                 return;
             }
-            throw new Error('Server returned non-JSON response. Please check authentication.');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || `HTTP error! status: ${response.status}`);
-        }
         
         if (data.error) {
             throw new Error(data.error);
         }
         
-        currentUserRole = data.user_role;
-        totalRecords = data.total_records;
-        totalPages = data.total_pages;
+        console.log('Records loaded successfully:', data.records?.length || 0, 'records');
         
-        console.log('Records loaded successfully:', data.records.length, 'records');
-        displayRecords(data.records, data.user_role);
+        if (data.records && data.records.length > 0) {
+            displayRecords(data.records, data.user_role);
+        } else {
+            displayRecords([], data.user_role);
+        }
+        
         displayPagination();
         
     } catch (error) {
@@ -309,19 +321,21 @@ function displayRecords(records, userRole) {
     if (!container) return;
     
     if (!records || records.length === 0) {
-        container.innerHTML = '<div class="no-records">No records found.</div>';
+        container.innerHTML = `
+            <div class="no-records">
+                <h3>No records found</h3>
+                <p>Try adjusting your search or filter criteria</p>
+            </div>
+        `;
         return;
     }
     
     console.log('Displaying', records.length, 'records for role:', userRole);
     
-    // Use requestAnimationFrame for smooth rendering
-    requestAnimationFrame(() => {
-        container.innerHTML = records.map(record => createRecordCard(record, userRole)).join('');
-        
-        // Add event listeners to action buttons
-        addRecordEventListeners();
-    });
+    container.innerHTML = records.map(record => createRecordCard(record, userRole)).join('');
+    
+    // Add event listeners to action buttons
+    addRecordEventListeners();
 }
 
 // Create HTML for a record card
