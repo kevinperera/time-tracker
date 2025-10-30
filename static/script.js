@@ -12,10 +12,12 @@ let isLoading = false;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing app...');
     initializeApp();
 });
 
 async function initializeApp() {
+    console.log('Initializing app...');
     await loadDevelopers();
     await loadRecords();
     
@@ -28,9 +30,14 @@ async function initializeApp() {
 
 // Setup all event listeners
 function setupEventListeners() {
+    console.log('Setting up event listeners...');
+    
     const createRecordForm = document.getElementById('createRecordForm');
     if (createRecordForm) {
+        console.log('Create record form found, adding listener');
         createRecordForm.addEventListener('submit', handleCreateRecord);
+    } else {
+        console.log('Create record form NOT found');
     }
     
     const statusFilter = document.getElementById('statusFilter');
@@ -56,24 +63,24 @@ function setupEventListeners() {
 
 // Setup modal functionality
 function setupModals() {
+    console.log('Setting up modals...');
+    
     // Create Record Modal
     const createModal = document.getElementById('createRecordModal');
-    const createCloseBtn = createModal ? createModal.querySelector('.close') : null;
-    
-    if (createCloseBtn) {
-        createCloseBtn.addEventListener('click', () => {
-            closeCreateRecordModal();
-        });
+    if (createModal) {
+        const createCloseBtn = createModal.querySelector('.close');
+        if (createCloseBtn) {
+            createCloseBtn.addEventListener('click', closeCreateRecordModal);
+        }
     }
     
     // Edit Record Modal
     const editModal = document.getElementById('editRecordModal');
-    const editCloseBtn = editModal ? editModal.querySelector('.close') : null;
-    
-    if (editCloseBtn) {
-        editCloseBtn.addEventListener('click', () => {
-            closeEditRecordModal();
-        });
+    if (editModal) {
+        const editCloseBtn = editModal.querySelector('.close');
+        if (editCloseBtn) {
+            editCloseBtn.addEventListener('click', closeEditRecordModal);
+        }
     }
     
     // Close modals when clicking outside
@@ -92,15 +99,19 @@ function setupModals() {
 
 // Open Create Record Modal
 function openCreateRecordModal() {
+    console.log('Opening create record modal...');
     const modal = document.getElementById('createRecordModal');
     if (modal) {
         modal.style.display = 'block';
+        console.log('Modal displayed');
         
         // Reset form
         const form = document.getElementById('createRecordForm');
         if (form) {
             form.reset();
         }
+    } else {
+        console.log('Create record modal not found');
     }
 }
 
@@ -128,7 +139,13 @@ function debounce(func, wait) {
 // Load developers for assignee dropdown
 async function loadDevelopers() {
     try {
+        console.log('Loading developers...');
         const response = await fetch('/api/developers');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
         
         if (data.error) {
@@ -136,6 +153,7 @@ async function loadDevelopers() {
         }
         
         developers = data.developers;
+        console.log('Developers loaded:', developers);
         
         // Populate developer dropdowns
         const devSelects = [
@@ -157,13 +175,16 @@ async function loadDevelopers() {
         
     } catch (error) {
         console.error('Error loading developers:', error);
-        showMessage('Error loading developers', 'error');
+        showMessage('Error loading developers: ' + error.message, 'error');
     }
 }
 
 // Load and display records
 async function loadRecords(page = 1) {
-    if (isLoading) return;
+    if (isLoading) {
+        console.log('Already loading records, skipping...');
+        return;
+    }
     
     try {
         isLoading = true;
@@ -182,17 +203,21 @@ async function loadRecords(page = 1) {
             url += `&search=${encodeURIComponent(searchQuery)}`;
         }
         
+        console.log('Loading records from:', url);
+        
         const response = await fetch(url);
         
         // Check if response is JSON
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
+            console.error('Non-JSON response:', text.substring(0, 200));
+            
             if (response.status === 401) {
                 window.location.href = '/login';
                 return;
             }
-            throw new Error('Server returned non-JSON response');
+            throw new Error('Server returned non-JSON response. Please check authentication.');
         }
         
         const data = await response.json();
@@ -209,12 +234,22 @@ async function loadRecords(page = 1) {
         totalRecords = data.total_records;
         totalPages = data.total_pages;
         
+        console.log('Records loaded successfully:', data.records.length, 'records');
         displayRecords(data.records, data.user_role);
         displayPagination();
         
     } catch (error) {
         console.error('Error loading records:', error);
-        showMessage('Error loading records: ' + error.message, 'error');
+        const container = document.getElementById('recordsContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-message">
+                    Error loading records: ${error.message}
+                    <br><br>
+                    <button onclick="location.reload()">Reload Page</button>
+                </div>
+            `;
+        }
     } finally {
         isLoading = false;
     }
@@ -235,6 +270,7 @@ function handleFilterChange() {
 // Display pagination
 function displayPagination() {
     const container = document.getElementById('paginationContainer');
+    if (!container) return;
     
     if (totalPages <= 1) {
         container.innerHTML = '';
@@ -270,11 +306,14 @@ function displayPagination() {
 // Display records in the container
 function displayRecords(records, userRole) {
     const container = document.getElementById('recordsContainer');
+    if (!container) return;
     
     if (!records || records.length === 0) {
         container.innerHTML = '<div class="no-records">No records found.</div>';
         return;
     }
+    
+    console.log('Displaying', records.length, 'records for role:', userRole);
     
     // Use requestAnimationFrame for smooth rendering
     requestAnimationFrame(() => {
@@ -286,18 +325,14 @@ function displayRecords(records, userRole) {
 }
 
 // Create HTML for a record card
-// Create HTML for a record card
-// Create HTML for a record card
 function createRecordCard(record, userRole) {
     const canEdit = userRole === 'admin' || userRole === 'lead';
     const isAssignedDeveloper = record.developer_assignee && record.developer_assignee === currentUsername;
     const canChangeStatus = (isAssignedDeveloper && userRole === 'developer') || canEdit;
     
     // Calculate progress percentages
-    const todoProgress = Math.min((record.time_todo / 24) * 100, 100); // 24 hours max for TODO
-    const inProgressProgress = Math.min((record.time_in_progress / 48) * 100, 100); // 48 hours max for In Progress
-    
-    console.log(`Record ${record.id}: Developer="${record.developer_assignee}", Current User="${currentUsername}", Can Change Status=${canChangeStatus}, User Role=${userRole}`);
+    const todoProgress = Math.min((record.time_todo / 24) * 100, 100);
+    const inProgressProgress = Math.min((record.time_in_progress / 48) * 100, 100);
     
     return `
         <div class="record-card ${record.eta_warning ? 'warning' : ''}" data-record-id="${record.id}">
@@ -426,6 +461,7 @@ function createRecordCard(record, userRole) {
         </div>
     `;
 }
+
 // Add event listeners to record action buttons
 function addRecordEventListeners() {
     // Status change handlers
@@ -460,12 +496,12 @@ async function handleStatusChange(event) {
         }
         
         showMessage('Status updated successfully', 'success');
-        await loadRecords(currentPage); // Reload to show updated status
+        await loadRecords(currentPage);
         
     } catch (error) {
         console.error('Error updating status:', error);
         showMessage('Error updating status: ' + error.message, 'error');
-        await loadRecords(currentPage); // Reload to reset select
+        await loadRecords(currentPage);
     }
 }
 
@@ -483,6 +519,7 @@ async function refreshRecordTime(recordId) {
 // Handle create record form submission
 async function handleCreateRecord(event) {
     event.preventDefault();
+    console.log('Create record form submitted');
     
     const formData = {
         task: document.getElementById('createTask').value,
@@ -500,6 +537,7 @@ async function handleCreateRecord(event) {
     }
     
     try {
+        console.log('Sending create record request:', formData);
         const response = await fetch('/records/create', {
             method: 'POST',
             headers: {
@@ -516,7 +554,7 @@ async function handleCreateRecord(event) {
         
         showMessage('Record created successfully', 'success');
         closeCreateRecordModal();
-        await loadRecords(1); // Reload first page
+        await loadRecords(1);
         
     } catch (error) {
         console.error('Error creating record:', error);
@@ -686,7 +724,10 @@ function showMessage(message, type) {
     messageDiv.className = `message ${type}`;
     messageDiv.textContent = message;
     
-    document.querySelector('.container').insertBefore(messageDiv, document.querySelector('.container').firstChild);
+    const container = document.querySelector('.container');
+    if (container) {
+        container.insertBefore(messageDiv, container.firstChild);
+    }
     
     // Auto-remove after 5 seconds
     setTimeout(() => {

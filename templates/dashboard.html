@@ -7,13 +7,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <script>
-        // Set current username from server-side template
-        const currentUsername = '{{ username }}';
-        const currentUserRole = '{{ role }}';
-        
-        console.log('Dashboard loaded - Current User:', currentUsername, 'Role:', currentUserRole);
-    </script>
     <!-- Enhanced Header -->
     <div class="header">
         <div class="header-content">
@@ -85,7 +78,9 @@
                 </div>
             </div>
             
-            <div id="recordsContainer"></div>
+            <div id="recordsContainer">
+                <div class="loading">Loading records...</div>
+            </div>
             
             <!-- Pagination -->
             <div class="pagination" id="paginationContainer">
@@ -216,6 +211,13 @@
         </div>
     </div>
 
+    <script>
+        // Set current username from server-side template
+        const currentUsername = '{{ username }}';
+        const currentUserRole = '{{ role }}';
+        
+        console.log('Dashboard loaded - Current User:', currentUsername, 'Role:', currentUserRole);
+    </script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
