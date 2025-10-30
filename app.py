@@ -316,14 +316,16 @@ def update_record_status_route(record_id):
         print(f"DEBUG: User {username} (role: {user_role}) trying to update record {record_id} status to {new_status}")
         print(f"DEBUG: Record developer: {record.get('developer_assignee')}")
         
-        # Developers can update status of their assigned records (except Backlog)
+        # Developers can update status of their assigned records
         if user_role == 'developer':
             # Check if developer is assigned to this record
             if record.get('developer_assignee') == username:
-                # Developers cannot set status to Backlog
-                if new_status == 'Backlog':
-                    return jsonify({'error': 'Developers cannot set status to Backlog'}), 403
-                print(f"DEBUG: Developer {username} is assigned to record, updating status")
+                # Developers can only change to: In Progress, In Review, Published
+                allowed_statuses = ['In Progress', 'In Review', 'Published']
+                if new_status not in allowed_statuses:
+                    return jsonify({'error': f'Developers can only set status to: {", ".join(allowed_statuses)}'}), 403
+                
+                print(f"DEBUG: Developer {username} is assigned to record, updating status to {new_status}")
                 update_record(record_id, status=new_status)
                 return jsonify({'message': 'Status updated successfully'})
             else:

@@ -7,6 +7,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <script>
+        // Set current username from server-side template
+        const currentUsername = '{{ username }}';
+        const currentUserRole = '{{ role }}';
+        
+        console.log('Dashboard loaded - Current User:', currentUsername, 'Role:', currentUserRole);
+    </script>
     <!-- Enhanced Header -->
     <div class="header">
         <div class="header-content">

@@ -1274,3 +1274,26 @@ button:disabled {
 .developer-restricted .status-select {
     display: block !important;
 }
+
+
+/* Style for disabled options in status dropdown */
+.status-select option:disabled {
+    color: #bdc3c7;
+    background-color: #f8f9fa;
+}
+
+.status-select option {
+    color: #333;
+    background-color: white;
+}
+
+/* Make sure status dropdown is always visible when needed */
+.record-actions .status-select {
+    display: block !important;
+    padding: 6px 10px;
+    border: 2px solid #e1e8ed;
+    border-radius: 6px;
+    background: white;
+    color: #333;
+    min-width: 120px;
+}

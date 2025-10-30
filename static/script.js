@@ -287,17 +287,17 @@ function displayRecords(records, userRole) {
 
 // Create HTML for a record card
 // Create HTML for a record card
+// Create HTML for a record card
 function createRecordCard(record, userRole) {
     const canEdit = userRole === 'admin' || userRole === 'lead';
-    const isAssignedDeveloper = record.developer_assignee && record.developer_assignee === '{{ username }}';
+    const isAssignedDeveloper = record.developer_assignee && record.developer_assignee === currentUsername;
     const canChangeStatus = (isAssignedDeveloper && userRole === 'developer') || canEdit;
     
     // Calculate progress percentages
     const todoProgress = Math.min((record.time_todo / 24) * 100, 100); // 24 hours max for TODO
     const inProgressProgress = Math.min((record.time_in_progress / 48) * 100, 100); // 48 hours max for In Progress
     
-    // Debug logging
-    console.log('Record:', record.id, 'Developer:', record.developer_assignee, 'Current User:', '{{ username }}', 'Can Change Status:', canChangeStatus);
+    console.log(`Record ${record.id}: Developer="${record.developer_assignee}", Current User="${currentUsername}", Can Change Status=${canChangeStatus}, User Role=${userRole}`);
     
     return `
         <div class="record-card ${record.eta_warning ? 'warning' : ''}" data-record-id="${record.id}">
@@ -397,11 +397,23 @@ function createRecordCard(record, userRole) {
             <div class="record-actions">
                 ${canChangeStatus ? `
                 <select class="status-select" data-record-id="${record.id}">
-                    ${userRole === 'developer' ? '<option value="Backlog" disabled>Backlog</option>' : '<option value="Backlog" ' + (record.status === 'Backlog' ? 'selected' : '') + '>Backlog</option>'}
-                    <option value="TODO" ${record.status === 'TODO' ? 'selected' : ''}>TODO</option>
-                    <option value="In Progress" ${record.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                    <option value="In Review" ${record.status === 'In Review' ? 'selected' : ''}>In Review</option>
-                    <option value="Published" ${record.status === 'Published' ? 'selected' : ''}>Published</option>
+                    ${userRole === 'developer' ? 
+                        `
+                        <option value="Backlog" disabled ${record.status === 'Backlog' ? 'selected' : ''}>Backlog</option>
+                        <option value="TODO" disabled ${record.status === 'TODO' ? 'selected' : ''}>TODO</option>
+                        <option value="In Progress" ${record.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="In Review" ${record.status === 'In Review' ? 'selected' : ''}>In Review</option>
+                        <option value="Published" ${record.status === 'Published' ? 'selected' : ''}>Published</option>
+                        ` 
+                        : 
+                        `
+                        <option value="Backlog" ${record.status === 'Backlog' ? 'selected' : ''}>Backlog</option>
+                        <option value="TODO" ${record.status === 'TODO' ? 'selected' : ''}>TODO</option>
+                        <option value="In Progress" ${record.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="In Review" ${record.status === 'In Review' ? 'selected' : ''}>In Review</option>
+                        <option value="Published" ${record.status === 'Published' ? 'selected' : ''}>Published</option>
+                        `
+                    }
                 </select>
                 ` : `
                 <span class="status-text">Status: ${record.status}</span>
@@ -414,7 +426,6 @@ function createRecordCard(record, userRole) {
         </div>
     `;
 }
-
 // Add event listeners to record action buttons
 function addRecordEventListeners() {
     // Status change handlers
