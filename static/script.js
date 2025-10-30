@@ -20,6 +20,14 @@ async function initializeApp() {
     await loadRecords();
     
     // Set up event listeners
+    setupEventListeners();
+    
+    // Set up modals
+    setupModals();
+}
+
+// Setup all event listeners
+function setupEventListeners() {
     const createRecordForm = document.getElementById('createRecordForm');
     if (createRecordForm) {
         createRecordForm.addEventListener('submit', handleCreateRecord);
@@ -44,40 +52,40 @@ async function initializeApp() {
     if (deleteRecordBtn) {
         deleteRecordBtn.addEventListener('click', handleDeleteRecord);
     }
-    
-    // Set up modals
-    setupModals();
 }
 
 // Setup modal functionality
 function setupModals() {
     // Create Record Modal
     const createModal = document.getElementById('createRecordModal');
-    const createCloseBtn = createModal.querySelector('.close');
+    const createCloseBtn = createModal ? createModal.querySelector('.close') : null;
     
     if (createCloseBtn) {
         createCloseBtn.addEventListener('click', () => {
-            createModal.style.display = 'none';
+            closeCreateRecordModal();
         });
     }
     
     // Edit Record Modal
     const editModal = document.getElementById('editRecordModal');
-    const editCloseBtn = editModal.querySelector('.close');
+    const editCloseBtn = editModal ? editModal.querySelector('.close') : null;
     
     if (editCloseBtn) {
         editCloseBtn.addEventListener('click', () => {
-            editModal.style.display = 'none';
+            closeEditRecordModal();
         });
     }
     
     // Close modals when clicking outside
     window.addEventListener('click', (event) => {
+        const createModal = document.getElementById('createRecordModal');
+        const editModal = document.getElementById('editRecordModal');
+        
         if (event.target === createModal) {
-            createModal.style.display = 'none';
+            closeCreateRecordModal();
         }
         if (event.target === editModal) {
-            editModal.style.display = 'none';
+            closeEditRecordModal();
         }
     });
 }
@@ -85,16 +93,23 @@ function setupModals() {
 // Open Create Record Modal
 function openCreateRecordModal() {
     const modal = document.getElementById('createRecordModal');
-    modal.style.display = 'block';
-    
-    // Reset form
-    document.getElementById('createRecordForm').reset();
+    if (modal) {
+        modal.style.display = 'block';
+        
+        // Reset form
+        const form = document.getElementById('createRecordForm');
+        if (form) {
+            form.reset();
+        }
+    }
 }
 
 // Close Create Record Modal
 function closeCreateRecordModal() {
     const modal = document.getElementById('createRecordModal');
-    modal.style.display = 'none';
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 // Debounce function for search
@@ -463,6 +478,12 @@ async function handleCreateRecord(event) {
         eta: document.getElementById('createEta').value || null
     };
     
+    // Validate required fields
+    if (!formData.task || !formData.book_id) {
+        showMessage('Task and Book ID are required fields', 'error');
+        return;
+    }
+    
     try {
         const response = await fetch('/records/create', {
             method: 'POST',
@@ -528,7 +549,10 @@ function openEditRecordModal(record) {
 
 // Close edit record modal
 function closeEditRecordModal() {
-    document.getElementById('editRecordModal').style.display = 'none';
+    const modal = document.getElementById('editRecordModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
     currentRecordId = null;
 }
 
