@@ -376,6 +376,17 @@ function createRecordCard(record, userRole) {
     const todoProgress = Math.min((record.time_todo / 24) * 100, 100);
     const inProgressProgress = Math.min((record.time_in_progress / 48) * 100, 100);
     
+    // Format time with hours and minutes
+    const formatTime = (hours, minutes) => {
+        if (hours === 0 && minutes === 0) return '0m';
+        if (hours === 0) return `${minutes}m`;
+        if (minutes === 0) return `${hours}h`;
+        return `${hours}h ${minutes}m`;
+    };
+    
+    const todoTimeFormatted = formatTime(record.time_todo_hours, record.time_todo_minutes);
+    const inProgressTimeFormatted = formatTime(record.time_in_progress_hours, record.time_in_progress_minutes);
+    
     return `
         <div class="record-card ${record.eta_warning ? 'warning' : ''}" data-record-id="${record.id}">
             <div class="record-header">
@@ -395,9 +406,12 @@ function createRecordCard(record, userRole) {
                 <div class="record-detail">
                     <strong>Created:</strong> ${formatDate(record.created_date)} by ${escapeHtml(record.created_by)}
                 </div>
+                ${record.developer_assignee ? `
                 <div class="record-detail">
-                    <strong>Developer:</strong> ${record.developer_assignee ? escapeHtml(record.developer_assignee) : 'Not assigned'}
+                    <strong>Developer:</strong> 
+                    <span class="developer-badge">${escapeHtml(record.developer_assignee)}</span>
                 </div>
+                ` : ''}
                 <div class="record-detail">
                     <strong>Page Count:</strong> ${record.page_count || 'N/A'}
                 </div>
@@ -431,7 +445,7 @@ function createRecordCard(record, userRole) {
                                 <span class="time-indicator"></span>
                                 TODO
                             </div>
-                            <div class="time-tracker-value">${record.time_todo.toFixed(1)}h</div>
+                            <div class="time-tracker-value">${todoTimeFormatted}</div>
                         </div>
                         <div class="compact-progress-bar">
                             <div class="compact-progress-fill todo" style="width: ${todoProgress}%"></div>
@@ -443,7 +457,7 @@ function createRecordCard(record, userRole) {
                                 <span class="time-indicator in-progress"></span>
                                 In Progress
                             </div>
-                            <div class="time-tracker-value">${record.time_in_progress.toFixed(1)}h</div>
+                            <div class="time-tracker-value">${inProgressTimeFormatted}</div>
                         </div>
                         <div class="compact-progress-bar">
                             <div class="compact-progress-fill in-progress" style="width: ${inProgressProgress}%"></div>

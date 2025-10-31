@@ -170,6 +170,7 @@ def get_records_route():
     try:
         status_filter = request.args.get('status', '')
         search_query = request.args.get('search', '')
+        assigned_to_me = request.args.get('assigned_to_me', 'false').lower() == 'true'
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 20))
         offset = (page - 1) * limit
@@ -177,11 +178,18 @@ def get_records_route():
         user_role = session['role']
         username = session['username']
         
+        # If assigned_to_me is true, filter by current user
+        if assigned_to_me and user_role == 'developer':
+            developer_filter = username
+        else:
+            developer_filter = None
+        
         records = get_records(
             user_role=user_role, 
             username=username, 
             status=status_filter, 
             search=search_query,
+            developer_filter=developer_filter,
             limit=limit,
             offset=offset
         )
@@ -190,7 +198,8 @@ def get_records_route():
             user_role=user_role,
             username=username,
             status=status_filter,
-            search=search_query
+            search=search_query,
+            developer_filter=developer_filter
         )
         
         # Add time tracking data for each record
@@ -217,6 +226,12 @@ def get_records_route():
             # Add current active time if status is In Progress
             if record['status'] == 'In Progress' and record['in_progress_start_time']:
                 current_in_progress_time += calculate_time_spent(record['in_progress_start_time'])
+            
+            # Convert to hours and minutes
+            record['time_todo_hours'] = int(current_todo_time)
+            record['time_todo_minutes'] = int((current_todo_time - record['time_todo_hours']) * 60)
+            record['time_in_progress_hours'] = int(current_in_progress_time)
+            record['time_in_progress_minutes'] = int((current_in_progress_time - record['time_in_progress_hours']) * 60)
             
             record['time_todo'] = current_todo_time
             record['time_in_progress'] = current_in_progress_time

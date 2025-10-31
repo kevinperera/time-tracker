@@ -286,7 +286,7 @@ def update_record(record_id, task=None, book_id=None, developer_assignee=None, p
     conn.commit()
     conn.close()
 
-def get_records(user_role=None, username=None, status=None, search=None, limit=20, offset=0):
+def get_records(user_role=None, username=None, status=None, search=None, developer_filter=None, limit=20, offset=0):
     conn = sqlite3.connect('time_tracker.db')
     c = conn.cursor()
     
@@ -301,6 +301,11 @@ def get_records(user_role=None, username=None, status=None, search=None, limit=2
     if user_role == 'developer' and username:
         conditions.append("(r.developer_assignee = ? OR r.developer_assignee IS NULL)")
         params.append(username)
+    
+    # Add developer filter for "Assigned to Me"
+    if developer_filter:
+        conditions.append("r.developer_assignee = ?")
+        params.append(developer_filter)
     
     if status:
         conditions.append("r.status = ?")
@@ -405,7 +410,7 @@ def delete_record(record_id):
     
     return success
 
-def get_records_count(user_role=None, username=None, status=None, search=None):
+def get_records_count(user_role=None, username=None, status=None, search=None, developer_filter=None):
     conn = sqlite3.connect('time_tracker.db')
     c = conn.cursor()
     
@@ -416,6 +421,11 @@ def get_records_count(user_role=None, username=None, status=None, search=None):
     if user_role == 'developer' and username:
         conditions.append("(r.developer_assignee = ? OR r.developer_assignee IS NULL)")
         params.append(username)
+    
+    # Add developer filter for "Assigned to Me"
+    if developer_filter:
+        conditions.append("r.developer_assignee = ?")
+        params.append(developer_filter)
     
     if status:
         conditions.append("r.status = ?")
