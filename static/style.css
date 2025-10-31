@@ -351,13 +351,17 @@ button:disabled {
     font-weight: 500;
 }
 
-/* Search and Filters */
+/* Enhanced Search and Filters */
 .search-filters {
     display: flex;
-    gap: 15px;
+    gap: 20px;
     margin-bottom: 25px;
     align-items: center;
     flex-wrap: wrap;
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #e1e8ed;
 }
 
 .search-box {
@@ -373,6 +377,7 @@ button:disabled {
     border-radius: 25px;
     font-size: 14px;
     transition: all 0.3s ease;
+    background: white;
 }
 
 .search-box input:focus {
@@ -391,24 +396,98 @@ button:disabled {
 
 .filter-group {
     display: flex;
-    gap: 10px;
+    gap: 15px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
-.filters select,
-.filters button {
-    padding: 8px 15px;
+.filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.filter-label {
+    font-size: 0.8em;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 2px;
+}
+
+.filter-select {
+    padding: 8px 12px;
     border: 2px solid #e1e8ed;
     border-radius: 6px;
     background: white;
     color: #333;
+    font-size: 14px;
+    min-width: 140px;
+    transition: all 0.3s ease;
 }
 
-.filters button {
+.filter-select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: white;
+    border: 2px solid #e1e8ed;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 140px;
+}
+
+.filter-checkbox:hover {
+    border-color: #3498db;
+}
+
+.filter-checkbox input[type="checkbox"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.filter-checkbox span {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+}
+
+.filter-checkbox.checked {
+    background: #3498db;
+    border-color: #3498db;
+    color: white;
+}
+
+.filter-checkbox.checked span {
+    color: white;
+}
+
+.export-btn {
     background: linear-gradient(135deg, #27ae60, #229954);
+    padding: 8px 16px;
+    border-radius: 6px;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
-.filters button:hover {
+.export-btn:hover {
+    transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
 }
 
@@ -500,46 +579,24 @@ button:disabled {
     min-width: 100px;
 }
 
-/* Enhanced Progress Bars */
-.time-tracking-details {
+/* Compact Time Tracking */
+.time-tracking-compact {
     background: #f8f9fa;
-    padding: 20px;
-    border-radius: 12px;
-    margin: 20px 0;
-    border-left: 4px solid #3498db;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.time-metric {
-    margin-bottom: 20px;
     padding: 15px;
-    background: white;
     border-radius: 8px;
-    border-left: 4px solid #3498db;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-    transition: transform 0.2s ease;
+    margin: 15px 0;
+    border-left: 3px solid #3498db;
 }
 
-.time-metric:hover {
-    transform: translateY(-2px);
-}
-
-.time-metric.todo {
-    border-left-color: #3498db;
-}
-
-.time-metric.in-progress {
-    border-left-color: #f39c12;
-}
-
-.time-metric-header {
+.time-tracking-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
 }
 
-.time-metric-label {
+.time-tracking-title {
+    font-size: 0.9em;
     font-weight: 600;
     color: #2c3e50;
     display: flex;
@@ -547,11 +604,74 @@ button:disabled {
     gap: 8px;
 }
 
-.status-indicator {
+.refresh-time-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.7em;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.refresh-time-btn:hover {
+    background: #2980b9;
+    transform: scale(1.05);
+}
+
+.time-tracking-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.time-tracker {
+    background: white;
+    padding: 10px;
+    border-radius: 6px;
+    border-left: 3px solid #3498db;
+}
+
+.time-tracker.in-progress {
+    border-left-color: #f39c12;
+}
+
+.time-tracker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.time-tracker-label {
+    font-size: 0.8em;
+    font-weight: 600;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.time-tracker-value {
+    font-size: 0.8em;
+    font-weight: 600;
+    color: #7f8c8d;
+}
+
+.time-indicator {
     display: inline-block;
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
+    background: #3498db;
+}
+
+.time-indicator.in-progress {
+    background: #f39c12;
     animation: pulse 2s infinite;
 }
 
@@ -561,114 +681,26 @@ button:disabled {
     100% { opacity: 1; }
 }
 
-.time-metric.todo .status-indicator { 
-    background: #3498db;
-    animation: none;
-}
-
-.time-metric.in-progress .status-indicator { 
-    background: #f39c12;
-}
-
-.refresh-btn {
-    background: #3498db;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.8em;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.refresh-btn:hover {
-    background: #2980b9;
-    transform: scale(1.05);
-}
-
-.refresh-btn:active {
-    transform: scale(0.95);
-}
-
-.time-metric-value {
-    color: #7f8c8d;
-    font-size: 1.1em;
-    font-weight: 600;
-    margin-bottom: 10px;
-}
-
-.progress-container {
-    margin-top: 10px;
-}
-
-.progress-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 5px;
-}
-
-.progress-label {
-    font-size: 0.85em;
-    color: #7f8c8d;
-    font-weight: 500;
-}
-
-.progress-percentage {
-    font-size: 0.85em;
-    color: #2c3e50;
-    font-weight: 600;
-}
-
-.progress-bar {
+.compact-progress-bar {
+    height: 6px;
     background: #e1e8ed;
-    height: 12px;
-    border-radius: 6px;
+    border-radius: 3px;
     overflow: hidden;
-    margin: 8px 0;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    margin-top: 5px;
 }
 
-.progress-fill {
+.compact-progress-fill {
     height: 100%;
-    border-radius: 6px;
-    transition: width 0.5s ease;
-    position: relative;
-    overflow: hidden;
+    border-radius: 3px;
+    transition: width 0.3s ease;
 }
 
-.progress-fill.todo {
+.compact-progress-fill.todo {
     background: linear-gradient(90deg, #3498db, #2980b9);
 }
 
-.progress-fill.in-progress {
+.compact-progress-fill.in-progress {
     background: linear-gradient(90deg, #f39c12, #e67e22);
-}
-
-.progress-fill::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-    0% { left: -100%; }
-    100% { left: 100%; }
-}
-
-.time-details {
-    font-size: 0.8em;
-    color: #95a5a6;
-    margin-top: 5px;
-    font-style: italic;
 }
 
 /* Record Actions */
@@ -1126,64 +1158,6 @@ button:disabled {
     min-width: 120px;
 }
 
-/* Enhanced Time Progress Bars */
-.time-progress-container {
-    margin: 15px 0;
-}
-
-.time-progress-bar {
-    height: 20px;
-    background: #e1e8ed;
-    border-radius: 10px;
-    overflow: hidden;
-    margin: 5px 0;
-    position: relative;
-}
-
-.time-progress-fill {
-    height: 100%;
-    border-radius: 10px;
-    transition: width 0.3s ease;
-    position: relative;
-}
-
-.time-progress-fill.todo {
-    background: linear-gradient(90deg, #3498db, #2980b9);
-}
-
-.time-progress-fill.in-progress {
-    background: linear-gradient(90deg, #f39c12, #e67e22);
-}
-
-.time-progress-text {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: white;
-    font-size: 0.7em;
-    font-weight: 600;
-    text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
-}
-
-.time-progress-label {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 5px;
-    font-size: 0.85em;
-}
-
-.time-progress-name {
-    font-weight: 600;
-    color: #2c3e50;
-}
-
-.time-progress-value {
-    color: #7f8c8d;
-    font-weight: 500;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
     .header-content {
@@ -1241,14 +1215,24 @@ button:disabled {
         width: 100%;
     }
     
-    .filters {
+    .search-filters {
         flex-direction: column;
         align-items: stretch;
+        gap: 15px;
     }
     
-    .filters select,
-    .filters button {
+    .search-box {
+        min-width: 100%;
+    }
+    
+    .filter-group {
         width: 100%;
+        justify-content: space-between;
+    }
+    
+    .filter-item {
+        flex: 1;
+        min-width: 120px;
     }
     
     .modal-content {
@@ -1280,10 +1264,9 @@ button:disabled {
         flex-direction: column;
     }
     
-    .time-metric-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+    .time-tracking-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
     }
     
     .quick-actions {
@@ -1333,6 +1316,15 @@ button:disabled {
     .header-content {
         padding: 10px;
     }
+    
+    .filter-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-item {
+        min-width: 100%;
+    }
 }
 
 /* Print Styles */
@@ -1351,7 +1343,7 @@ button:disabled {
         border: 1px solid #ccc;
     }
     
-    .time-tracking-details {
+    .time-tracking-compact {
         background: white;
         border: 1px solid #ccc;
     }

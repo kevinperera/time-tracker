@@ -9,6 +9,7 @@ let totalRecords = 0;
 let totalPages = 1;
 let currentSearch = '';
 let currentStatusFilter = '';
+let currentAssignedToMeFilter = false;
 let isLoading = false;
 
 // Initialize when DOM is loaded
@@ -74,6 +75,12 @@ function setupEventListeners() {
     const deleteRecordBtn = document.getElementById('deleteRecordBtn');
     if (deleteRecordBtn) {
         deleteRecordBtn.addEventListener('click', handleDeleteRecord);
+    }
+    
+    // Assigned to me checkbox listener
+    const assignedToMeCheckbox = document.getElementById('assignedToMe');
+    if (assignedToMeCheckbox) {
+        assignedToMeCheckbox.addEventListener('change', handleAssignedToMeFilter);
     }
 }
 
@@ -210,9 +217,12 @@ async function loadRecords(page = 1) {
         currentPage = page;
         const statusFilter = document.getElementById('statusFilter')?.value || '';
         const searchQuery = document.getElementById('searchInput')?.value || '';
+        const assignedToMeCheckbox = document.getElementById('assignedToMe');
+        const assignedToMe = assignedToMeCheckbox ? assignedToMeCheckbox.checked : false;
         
         currentStatusFilter = statusFilter;
         currentSearch = searchQuery;
+        currentAssignedToMeFilter = assignedToMe;
         
         let url = `/records?page=${page}&limit=${recordsPerPage}`;
         if (statusFilter) {
@@ -220,6 +230,9 @@ async function loadRecords(page = 1) {
         }
         if (searchQuery) {
             url += `&search=${encodeURIComponent(searchQuery)}`;
+        }
+        if (assignedToMe) {
+            url += `&assigned_to_me=true`;
         }
         
         console.log('Loading records from:', url);
@@ -275,6 +288,21 @@ function handleSearch() {
 
 // Handle filter change
 function handleFilterChange() {
+    currentPage = 1;
+    loadRecords(1);
+}
+
+// Handle assigned to me filter
+function handleAssignedToMeFilter() {
+    const checkbox = document.getElementById('assignedToMe');
+    if (checkbox) {
+        const label = checkbox.closest('.filter-checkbox');
+        if (checkbox.checked) {
+            label.classList.add('checked');
+        } else {
+            label.classList.remove('checked');
+        }
+    }
     currentPage = 1;
     loadRecords(1);
 }
@@ -386,61 +414,42 @@ function createRecordCard(record, userRole) {
                 ` : ''}
             </div>
             
-            <!-- Enhanced Time Tracking -->
-            <div class="time-tracking-details">
-                ${record.time_todo > 0 || record.status === 'TODO' ? `
-                <div class="time-metric todo">
-                    <div class="time-metric-header">
-                        <div class="time-metric-label">
-                            <span class="status-indicator"></span>
-                            Time in TODO
-                        </div>
-                        <button class="refresh-btn" onclick="refreshRecordTime(${record.id})">
-                            🔄 Refresh
-                        </button>
+            <!-- Compact Time Tracking -->
+            <div class="time-tracking-compact">
+                <div class="time-tracking-header">
+                    <div class="time-tracking-title">
+                        ⏱️ Time Tracking
                     </div>
-                    <div class="time-metric-value">${record.time_todo.toFixed(2)} hours</div>
-                    ${record.status === 'TODO' ? `
-                    <div class="progress-container">
-                        <div class="progress-header">
-                            <div class="progress-label">Progress</div>
-                            <div class="progress-percentage">${todoProgress.toFixed(1)}%</div>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill todo" style="width: ${todoProgress}%"></div>
-                        </div>
-                    </div>
-                    ` : ''}
-                    <div class="time-details">Accumulated time spent in TODO status</div>
+                    <button class="refresh-time-btn" onclick="refreshRecordTime(${record.id})" title="Refresh Time">
+                        🔄
+                    </button>
                 </div>
-                ` : ''}
-                
-                ${record.time_in_progress > 0 || record.status === 'In Progress' ? `
-                <div class="time-metric in-progress">
-                    <div class="time-metric-header">
-                        <div class="time-metric-label">
-                            <span class="status-indicator"></span>
-                            Time in In Progress
+                <div class="time-tracking-grid">
+                    <div class="time-tracker">
+                        <div class="time-tracker-header">
+                            <div class="time-tracker-label">
+                                <span class="time-indicator"></span>
+                                TODO
+                            </div>
+                            <div class="time-tracker-value">${record.time_todo.toFixed(1)}h</div>
                         </div>
-                        <button class="refresh-btn" onclick="refreshRecordTime(${record.id})">
-                            🔄 Refresh
-                        </button>
-                    </div>
-                    <div class="time-metric-value">${record.time_in_progress.toFixed(2)} hours</div>
-                    ${record.status === 'In Progress' ? `
-                    <div class="progress-container">
-                        <div class="progress-header">
-                            <div class="progress-label">Progress</div>
-                            <div class="progress-percentage">${inProgressProgress.toFixed(1)}%</div>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill in-progress" style="width: ${inProgressProgress}%"></div>
+                        <div class="compact-progress-bar">
+                            <div class="compact-progress-fill todo" style="width: ${todoProgress}%"></div>
                         </div>
                     </div>
-                    ` : ''}
-                    <div class="time-details">Accumulated time spent in In Progress status</div>
+                    <div class="time-tracker in-progress">
+                        <div class="time-tracker-header">
+                            <div class="time-tracker-label">
+                                <span class="time-indicator in-progress"></span>
+                                In Progress
+                            </div>
+                            <div class="time-tracker-value">${record.time_in_progress.toFixed(1)}h</div>
+                        </div>
+                        <div class="compact-progress-bar">
+                            <div class="compact-progress-fill in-progress" style="width: ${inProgressProgress}%"></div>
+                        </div>
+                    </div>
                 </div>
-                ` : ''}
             </div>
             
             <div class="record-actions">

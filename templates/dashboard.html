@@ -63,16 +63,32 @@
                     <span class="search-icon">🔍</span>
                 </div>
                 <div class="filter-group">
-                    <select id="statusFilter">
-                        <option value="">All Status</option>
-                        <option value="Backlog">Backlog</option>
-                        <option value="TODO">TODO</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="In Review">In Review</option>
-                        <option value="Published">Published</option>
-                    </select>
+                    <div class="filter-item">
+                        <div class="filter-label">Status</div>
+                        <select id="statusFilter" class="filter-select">
+                            <option value="">All Status</option>
+                            <option value="Backlog">Backlog</option>
+                            <option value="TODO">TODO</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="In Review">In Review</option>
+                            <option value="Published">Published</option>
+                        </select>
+                    </div>
+                    
+                    {% if role == 'developer' %}
+                    <div class="filter-item">
+                        <div class="filter-label">Assigned To</div>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="assignedToMe">
+                            <span>Assigned to Me</span>
+                        </label>
+                    </div>
+                    {% endif %}
+                    
                     {% if role == 'admin' %}
-                    <button onclick="exportCSV()">Export CSV</button>
+                    <button class="export-btn" onclick="exportCSV()">
+                        📊 Export CSV
+                    </button>
                     {% endif %}
                 </div>
             </div>
