@@ -29,6 +29,11 @@
                     <a href="/dashboard" class="nav-link active">
                         📊 Dashboard
                     </a>
+                    {% if role in ['admin', 'lead'] %}
+                    <a href="/tracking" class="nav-link">
+                        📈 Tracking Information
+                    </a>
+                    {% endif %}
                     {% if role == 'admin' %}
                     <a href="/admin/users" class="nav-link">
                         👥 User Management

@@ -4,9 +4,13 @@ from functools import wraps
 import csv
 from io import StringIO
 from datetime import datetime, timedelta
+from trackingpy import tracking_bp  # Add this import
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this in production!
+
+# Register the tracking blueprint
+app.register_blueprint(tracking_bp)
 
 # Initialize database
 init_db()
