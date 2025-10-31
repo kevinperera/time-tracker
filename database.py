@@ -33,6 +33,8 @@ def init_db():
             published_date DATETIME,
             todo_start_time DATETIME,
             in_progress_start_time DATETIME,
+            total_todo_time REAL DEFAULT 0,
+            total_in_progress_time REAL DEFAULT 0,
             FOREIGN KEY (developer_assignee) REFERENCES users (username),
             FOREIGN KEY (created_by) REFERENCES users (username)
         )
@@ -58,6 +60,14 @@ def init_db():
     if 'in_progress_start_time' not in columns:
         c.execute("ALTER TABLE records ADD COLUMN in_progress_start_time DATETIME")
         print("Added in_progress_start_time column")
+    
+    if 'total_todo_time' not in columns:
+        c.execute("ALTER TABLE records ADD COLUMN total_todo_time REAL DEFAULT 0")
+        print("Added total_todo_time column")
+    
+    if 'total_in_progress_time' not in columns:
+        c.execute("ALTER TABLE records ADD COLUMN total_in_progress_time REAL DEFAULT 0")
+        print("Added total_in_progress_time column")
     
     conn.commit()
     conn.close()
@@ -201,13 +211,13 @@ def update_record(record_id, task=None, book_id=None, developer_assignee=None, p
     conn = sqlite3.connect('time_tracker.db')
     c = conn.cursor()
     
-    # Get current status before update
-    c.execute("SELECT status FROM records WHERE id = ?", (record_id,))
-    current_status_result = c.fetchone()
-    if current_status_result:
-        current_status = current_status_result[0]
+    # Get current record data before update
+    c.execute("SELECT status, todo_start_time, in_progress_start_time, total_todo_time, total_in_progress_time FROM records WHERE id = ?", (record_id,))
+    current_record = c.fetchone()
+    if current_record:
+        current_status, current_todo_start, current_in_progress_start, current_total_todo, current_total_in_progress = current_record
     else:
-        current_status = None
+        current_status, current_todo_start, current_in_progress_start, current_total_todo, current_total_in_progress = None, None, None, 0, 0
     
     updates = []
     params = []
@@ -230,27 +240,43 @@ def update_record(record_id, task=None, book_id=None, developer_assignee=None, p
     if eta is not None:
         updates.append("eta = ?")
         params.append(eta)
+    
+    # Handle status changes and time tracking
     if status is not None and status != current_status:
         updates.append("status = ?")
         params.append(status)
         
-        # Handle status-specific timestamps
+        now = datetime.now()
+        
+        # Handle TODO status time tracking
         if status == 'TODO':
-            updates.append("todo_start_time = ?")
-            params.append(datetime.now())
-            # Clear in-progress time if moving back to TODO
-            updates.append("in_progress_start_time = NULL")
-        elif status == 'In Progress':
-            updates.append("in_progress_start_time = ?")
-            params.append(datetime.now())
-        elif status in ['In Review', 'Published', 'Backlog']:
-            # Clear both timestamps when moving away from TODO/In Progress
+            # Start TODO timer if not already started
+            if not current_todo_start:
+                updates.append("todo_start_time = ?")
+                params.append(now)
+        elif current_status == 'TODO' and current_todo_start:
+            # Stop TODO timer and add to total
+            todo_time_spent = calculate_time_spent(current_todo_start)
+            updates.append("total_todo_time = total_todo_time + ?")
+            params.append(todo_time_spent)
             updates.append("todo_start_time = NULL")
+        
+        # Handle In Progress status time tracking
+        if status == 'In Progress':
+            # Start In Progress timer if not already started
+            if not current_in_progress_start:
+                updates.append("in_progress_start_time = ?")
+                params.append(now)
+        elif current_status == 'In Progress' and current_in_progress_start:
+            # Stop In Progress timer and add to total
+            in_progress_time_spent = calculate_time_spent(current_in_progress_start)
+            updates.append("total_in_progress_time = total_in_progress_time + ?")
+            params.append(in_progress_time_spent)
             updates.append("in_progress_start_time = NULL")
         
         if status == 'Published':
             updates.append("published_date = ?")
-            params.append(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            params.append(now.strftime('%Y-%m-%d %H:%M:%S'))
     
     if updates:
         query = f"UPDATE records SET {', '.join(updates)} WHERE id = ?"
@@ -307,7 +333,9 @@ def get_records(user_role=None, username=None, status=None, search=None, limit=2
             'published_date': row[10],
             'todo_start_time': row[11],
             'in_progress_start_time': row[12],
-            'created_by_role': row[13]
+            'total_todo_time': row[13] or 0,
+            'total_in_progress_time': row[14] or 0,
+            'created_by_role': row[15]
         })
     
     conn.close()
@@ -334,7 +362,9 @@ def get_record_by_id(record_id):
             'created_date': row[9],
             'published_date': row[10],
             'todo_start_time': row[11],
-            'in_progress_start_time': row[12]
+            'in_progress_start_time': row[12],
+            'total_todo_time': row[13] or 0,
+            'total_in_progress_time': row[14] or 0
         }
     else:
         record = None

@@ -344,7 +344,7 @@ function createRecordCard(record, userRole) {
     const isAssignedDeveloper = record.developer_assignee && record.developer_assignee === currentUsername;
     const canChangeStatus = (isAssignedDeveloper && userRole === 'developer') || canEdit;
     
-    // Calculate progress percentages
+    // Calculate progress percentages based on accumulated time
     const todoProgress = Math.min((record.time_todo / 24) * 100, 100);
     const inProgressProgress = Math.min((record.time_in_progress / 48) * 100, 100);
     
@@ -411,7 +411,7 @@ function createRecordCard(record, userRole) {
                         </div>
                     </div>
                     ` : ''}
-                    <div class="time-details">Time calculated since status was set to TODO</div>
+                    <div class="time-details">Accumulated time spent in TODO status</div>
                 </div>
                 ` : ''}
                 
@@ -438,7 +438,7 @@ function createRecordCard(record, userRole) {
                         </div>
                     </div>
                     ` : ''}
-                    <div class="time-details">Time calculated since status was set to In Progress</div>
+                    <div class="time-details">Accumulated time spent in In Progress status</div>
                 </div>
                 ` : ''}
             </div>
@@ -767,3 +767,10 @@ function escapeHtml(unsafe) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+
+// Auto-refresh records every 30 seconds to update time tracking
+setInterval(() => {
+    if (document.visibilityState === 'visible') {
+        loadRecords(currentPage);
+    }
+}, 30000);

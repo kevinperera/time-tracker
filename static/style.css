@@ -561,12 +561,12 @@ button:disabled {
     100% { opacity: 1; }
 }
 
-.status-todo .status-indicator { 
+.time-metric.todo .status-indicator { 
     background: #3498db;
     animation: none;
 }
 
-.status-inprogress .status-indicator { 
+.time-metric.in-progress .status-indicator { 
     background: #f39c12;
 }
 
@@ -970,8 +970,6 @@ button:disabled {
     color: white !important;
 }
 
-
-
 /* Loading animation */
 .loading {
     opacity: 0.6;
@@ -992,175 +990,6 @@ button:disabled {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .header-content {
-        flex-direction: column;
-        gap: 15px;
-        padding: 15px;
-    }
-    
-    .user-nav {
-        flex-direction: column;
-        gap: 15px;
-        width: 100%;
-    }
-    
-    .nav-links {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .container {
-        padding: 15px;
-    }
-    
-    .form-row {
-        flex-direction: column;
-        gap: 15px;
-    }
-    
-    .form-group {
-        min-width: 100%;
-    }
-    
-    .record-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .record-status-container {
-        width: 100%;
-        justify-content: flex-start;
-        margin-top: 10px;
-    }
-    
-    .record-details {
-        grid-template-columns: 1fr;
-    }
-    
-    .record-actions {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .record-actions select,
-    .record-actions button {
-        width: 100%;
-    }
-    
-    .filters {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .filters select,
-    .filters button {
-        width: 100%;
-    }
-    
-    .modal-content {
-        margin: 10% auto;
-        width: 95%;
-        padding: 20px;
-    }
-    
-    .user-card {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
-    }
-    
-    .user-actions {
-        width: 100%;
-        justify-content: stretch;
-    }
-    
-    .user-actions button {
-        flex: 1;
-    }
-    
-    .user-form-row {
-        flex-direction: column;
-    }
-    
-    .form-actions {
-        flex-direction: column;
-    }
-    
-    .time-metric-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-}
-
-@media (max-width: 480px) {
-    .login-container {
-        padding: 25px;
-        margin: 10px;
-    }
-    
-    .login-form h1 {
-        font-size: 1.8em;
-    }
-    
-    .container {
-        padding: 10px;
-    }
-    
-    .form-section,
-    .records-section,
-    .users-section {
-        padding: 15px;
-    }
-    
-    .logo {
-        font-size: 2em;
-    }
-    
-    .user-info {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .nav-links {
-        flex-wrap: wrap;
-    }
-    
-    .nav-link {
-        flex: 1;
-        justify-content: center;
-        min-width: 120px;
-    }
-    
-    .header-content {
-        padding: 10px;
-    }
-}
-
-/* Print Styles */
-@media print {
-    .header,
-    .filters,
-    .record-actions,
-    .user-actions,
-    .refresh-btn {
-        display: none;
-    }
-    
-    .record-card {
-        break-inside: avoid;
-        box-shadow: none;
-        border: 1px solid #ccc;
-    }
-    
-    .time-tracking-details {
-        background: white;
-        border: 1px solid #ccc;
-    }
 }
 
 /* Quick Actions */
@@ -1275,7 +1104,6 @@ button:disabled {
     display: block !important;
 }
 
-
 /* Style for disabled options in status dropdown */
 .status-select option:disabled {
     color: #bdc3c7;
@@ -1296,4 +1124,235 @@ button:disabled {
     background: white;
     color: #333;
     min-width: 120px;
+}
+
+/* Enhanced Time Progress Bars */
+.time-progress-container {
+    margin: 15px 0;
+}
+
+.time-progress-bar {
+    height: 20px;
+    background: #e1e8ed;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 5px 0;
+    position: relative;
+}
+
+.time-progress-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.time-progress-fill.todo {
+    background: linear-gradient(90deg, #3498db, #2980b9);
+}
+
+.time-progress-fill.in-progress {
+    background: linear-gradient(90deg, #f39c12, #e67e22);
+}
+
+.time-progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 0.7em;
+    font-weight: 600;
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
+}
+
+.time-progress-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+    font-size: 0.85em;
+}
+
+.time-progress-name {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.time-progress-value {
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px;
+    }
+    
+    .user-nav {
+        flex-direction: column;
+        gap: 15px;
+        width: 100%;
+    }
+    
+    .nav-links {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .container {
+        padding: 15px;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .form-group {
+        min-width: 100%;
+    }
+    
+    .record-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .record-status-container {
+        width: 100%;
+        justify-content: flex-start;
+        margin-top: 10px;
+    }
+    
+    .record-details {
+        grid-template-columns: 1fr;
+    }
+    
+    .record-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .record-actions select,
+    .record-actions button {
+        width: 100%;
+    }
+    
+    .filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filters select,
+    .filters button {
+        width: 100%;
+    }
+    
+    .modal-content {
+        margin: 10% auto;
+        width: 95%;
+        padding: 20px;
+    }
+    
+    .user-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .user-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+    
+    .user-actions button {
+        flex: 1;
+    }
+    
+    .user-form-row {
+        flex-direction: column;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .time-metric-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .quick-actions {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .login-container {
+        padding: 25px;
+        margin: 10px;
+    }
+    
+    .login-form h1 {
+        font-size: 1.8em;
+    }
+    
+    .container {
+        padding: 10px;
+    }
+    
+    .form-section,
+    .records-section,
+    .users-section {
+        padding: 15px;
+    }
+    
+    .logo {
+        font-size: 2em;
+    }
+    
+    .user-info {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .nav-links {
+        flex-wrap: wrap;
+    }
+    
+    .nav-link {
+        flex: 1;
+        justify-content: center;
+        min-width: 120px;
+    }
+    
+    .header-content {
+        padding: 10px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .header,
+    .filters,
+    .record-actions,
+    .user-actions,
+    .refresh-btn {
+        display: none;
+    }
+    
+    .record-card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+    
+    .time-tracking-details {
+        background: white;
+        border: 1px solid #ccc;
+    }
 }

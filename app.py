@@ -206,17 +206,20 @@ def get_records_route():
             else:
                 record['eta_warning'] = False
             
-            # Calculate time spent for TODO status
-            if record['status'] == 'TODO' and record['todo_start_time']:
-                record['time_todo'] = calculate_time_spent(record['todo_start_time'])
-            else:
-                record['time_todo'] = 0
+            # Calculate current time for active statuses and add to total
+            current_todo_time = record['total_todo_time']
+            current_in_progress_time = record['total_in_progress_time']
             
-            # Calculate time spent for In Progress status
+            # Add current active time if status is TODO
+            if record['status'] == 'TODO' and record['todo_start_time']:
+                current_todo_time += calculate_time_spent(record['todo_start_time'])
+            
+            # Add current active time if status is In Progress
             if record['status'] == 'In Progress' and record['in_progress_start_time']:
-                record['time_in_progress'] = calculate_time_spent(record['in_progress_start_time'])
-            else:
-                record['time_in_progress'] = 0
+                current_in_progress_time += calculate_time_spent(record['in_progress_start_time'])
+            
+            record['time_todo'] = current_todo_time
+            record['time_in_progress'] = current_in_progress_time
         
         return jsonify({
             'records': records, 
@@ -362,9 +365,16 @@ def get_record_time_route(record_id):
         if not record:
             return jsonify({'error': 'Record not found'}), 404
         
-        time_todo = get_time_spent_by_status(record_id, 'TODO')
-        time_in_progress = get_time_spent_by_status(record_id, 'In Progress')
-        total_time = get_time_spent_by_status(record_id)
+        # Calculate current times including active session
+        time_todo = record['total_todo_time']
+        time_in_progress = record['total_in_progress_time']
+        
+        if record['status'] == 'TODO' and record['todo_start_time']:
+            time_todo += calculate_time_spent(record['todo_start_time'])
+        elif record['status'] == 'In Progress' and record['in_progress_start_time']:
+            time_in_progress += calculate_time_spent(record['in_progress_start_time'])
+        
+        total_time = time_todo + time_in_progress
         
         return jsonify({
             'time_todo': time_todo,
