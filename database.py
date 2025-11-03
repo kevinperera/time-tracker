@@ -27,14 +27,16 @@ def init_db():
             page_count INTEGER,
             ocr TEXT CHECK(ocr IN ('yes', 'no')),
             eta DATE,
-            status TEXT NOT NULL CHECK(status IN ('Backlog', 'TODO', 'In Progress', 'In Review', 'Published')),
+            status TEXT NOT NULL CHECK(status IN ('Backlog', 'TODO', 'In Progress', 'In Review', 'Published', 'On-Hold')),
             created_by TEXT NOT NULL,
             created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
             published_date DATETIME,
             todo_start_time DATETIME,
             in_progress_start_time DATETIME,
+            review_failed_start_time DATETIME,
             total_todo_time REAL DEFAULT 0,
             total_in_progress_time REAL DEFAULT 0,
+            total_review_failed_time REAL DEFAULT 0,
             FOREIGN KEY (developer_assignee) REFERENCES users (username),
             FOREIGN KEY (created_by) REFERENCES users (username)
         )
@@ -61,6 +63,10 @@ def init_db():
         c.execute("ALTER TABLE records ADD COLUMN in_progress_start_time DATETIME")
         print("Added in_progress_start_time column")
     
+    if 'review_failed_start_time' not in columns:
+        c.execute("ALTER TABLE records ADD COLUMN review_failed_start_time DATETIME")
+        print("Added review_failed_start_time column")
+    
     if 'total_todo_time' not in columns:
         c.execute("ALTER TABLE records ADD COLUMN total_todo_time REAL DEFAULT 0")
         print("Added total_todo_time column")
@@ -68,6 +74,10 @@ def init_db():
     if 'total_in_progress_time' not in columns:
         c.execute("ALTER TABLE records ADD COLUMN total_in_progress_time REAL DEFAULT 0")
         print("Added total_in_progress_time column")
+    
+    if 'total_review_failed_time' not in columns:
+        c.execute("ALTER TABLE records ADD COLUMN total_review_failed_time REAL DEFAULT 0")
+        print("Added total_review_failed_time column")
     
     conn.commit()
     conn.close()
@@ -212,12 +222,12 @@ def update_record(record_id, task=None, book_id=None, developer_assignee=None, p
     c = conn.cursor()
     
     # Get current record data before update
-    c.execute("SELECT status, todo_start_time, in_progress_start_time, total_todo_time, total_in_progress_time FROM records WHERE id = ?", (record_id,))
+    c.execute("SELECT status, todo_start_time, in_progress_start_time, review_failed_start_time, total_todo_time, total_in_progress_time, total_review_failed_time FROM records WHERE id = ?", (record_id,))
     current_record = c.fetchone()
     if current_record:
-        current_status, current_todo_start, current_in_progress_start, current_total_todo, current_total_in_progress = current_record
+        current_status, current_todo_start, current_in_progress_start, current_review_failed_start, current_total_todo, current_total_in_progress, current_total_review_failed = current_record
     else:
-        current_status, current_todo_start, current_in_progress_start, current_total_todo, current_total_in_progress = None, None, None, 0, 0
+        current_status, current_todo_start, current_in_progress_start, current_review_failed_start, current_total_todo, current_total_in_progress, current_total_review_failed = None, None, None, None, 0, 0, 0
     
     updates = []
     params = []
@@ -273,6 +283,38 @@ def update_record(record_id, task=None, book_id=None, developer_assignee=None, p
             updates.append("total_in_progress_time = total_in_progress_time + ?")
             params.append(in_progress_time_spent)
             updates.append("in_progress_start_time = NULL")
+        
+        # Handle Review Failed - In Progress status time tracking
+        if status == 'Review failed - In Progress':
+            # Start Review Failed timer if not already started
+            if not current_review_failed_start:
+                updates.append("review_failed_start_time = ?")
+                params.append(now)
+        elif current_status == 'Review failed - In Progress' and current_review_failed_start:
+            # Stop Review Failed timer and add to total
+            review_failed_time_spent = calculate_time_spent(current_review_failed_start)
+            updates.append("total_review_failed_time = total_review_failed_time + ?")
+            params.append(review_failed_time_spent)
+            updates.append("review_failed_start_time = NULL")
+        
+        # For On-Hold status, stop all timers but don't start new ones
+        if status == 'On-Hold':
+            # Stop any active timers
+            if current_status == 'TODO' and current_todo_start:
+                todo_time_spent = calculate_time_spent(current_todo_start)
+                updates.append("total_todo_time = total_todo_time + ?")
+                params.append(todo_time_spent)
+                updates.append("todo_start_time = NULL")
+            elif current_status == 'In Progress' and current_in_progress_start:
+                in_progress_time_spent = calculate_time_spent(current_in_progress_start)
+                updates.append("total_in_progress_time = total_in_progress_time + ?")
+                params.append(in_progress_time_spent)
+                updates.append("in_progress_start_time = NULL")
+            elif current_status == 'Review failed - In Progress' and current_review_failed_start:
+                review_failed_time_spent = calculate_time_spent(current_review_failed_start)
+                updates.append("total_review_failed_time = total_review_failed_time + ?")
+                params.append(review_failed_time_spent)
+                updates.append("review_failed_start_time = NULL")
         
         if status == 'Published':
             updates.append("published_date = ?")
@@ -338,9 +380,11 @@ def get_records(user_role=None, username=None, status=None, search=None, develop
             'published_date': row[10],
             'todo_start_time': row[11],
             'in_progress_start_time': row[12],
-            'total_todo_time': row[13] or 0,
-            'total_in_progress_time': row[14] or 0,
-            'created_by_role': row[15]
+            'review_failed_start_time': row[13],
+            'total_todo_time': row[14] or 0,
+            'total_in_progress_time': row[15] or 0,
+            'total_review_failed_time': row[16] or 0,
+            'created_by_role': row[17]
         })
     
     conn.close()
@@ -368,8 +412,10 @@ def get_record_by_id(record_id):
             'published_date': row[10],
             'todo_start_time': row[11],
             'in_progress_start_time': row[12],
-            'total_todo_time': row[13] or 0,
-            'total_in_progress_time': row[14] or 0
+            'review_failed_start_time': row[13],
+            'total_todo_time': row[14] or 0,
+            'total_in_progress_time': row[15] or 0,
+            'total_review_failed_time': row[16] or 0
         }
     else:
         record = None

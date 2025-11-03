@@ -375,6 +375,7 @@ function createRecordCard(record, userRole) {
     // Calculate progress percentages based on accumulated time
     const todoProgress = Math.min((record.time_todo / 24) * 100, 100);
     const inProgressProgress = Math.min((record.time_in_progress / 48) * 100, 100);
+    const reviewFailedProgress = Math.min((record.time_review_failed / 48) * 100, 100);
     
     // Format time with hours and minutes
     const formatTime = (hours, minutes) => {
@@ -386,13 +387,14 @@ function createRecordCard(record, userRole) {
     
     const todoTimeFormatted = formatTime(record.time_todo_hours, record.time_todo_minutes);
     const inProgressTimeFormatted = formatTime(record.time_in_progress_hours, record.time_in_progress_minutes);
+    const reviewFailedTimeFormatted = formatTime(record.time_review_failed_hours, record.time_review_failed_minutes);
     
     return `
         <div class="record-card ${record.eta_warning ? 'warning' : ''}" data-record-id="${record.id}">
             <div class="record-header">
                 <div class="record-title">${escapeHtml(record.task)}</div>
                 <div class="record-status-container">
-                    <span class="record-status status-${record.status.toLowerCase().replace(' ', '')}">
+                    <span class="record-status status-${record.status.toLowerCase().replace(' ', '').replace('-', '')}">
                         ${record.status}
                     </span>
                     ${record.eta_warning ? '<span class="eta-warning">ETA SOON</span>' : ''}
@@ -463,6 +465,18 @@ function createRecordCard(record, userRole) {
                             <div class="compact-progress-fill in-progress" style="width: ${inProgressProgress}%"></div>
                         </div>
                     </div>
+                    <div class="time-tracker review-failed">
+                        <div class="time-tracker-header">
+                            <div class="time-tracker-label">
+                                <span class="time-indicator review-failed"></span>
+                                Review Failed
+                            </div>
+                            <div class="time-tracker-value">${reviewFailedTimeFormatted}</div>
+                        </div>
+                        <div class="compact-progress-bar">
+                            <div class="compact-progress-fill review-failed" style="width: ${reviewFailedProgress}%"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -475,6 +489,8 @@ function createRecordCard(record, userRole) {
                         <option value="TODO" disabled ${record.status === 'TODO' ? 'selected' : ''}>TODO</option>
                         <option value="In Progress" ${record.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
                         <option value="In Review" ${record.status === 'In Review' ? 'selected' : ''}>In Review</option>
+                        <option value="Review failed - In Progress" ${record.status === 'Review failed - In Progress' ? 'selected' : ''}>Review failed - In Progress</option>
+                        <option value="On-Hold" ${record.status === 'On-Hold' ? 'selected' : ''}>On-Hold</option>
                         <option value="Published" ${record.status === 'Published' ? 'selected' : ''}>Published</option>
                         ` 
                         : 
@@ -483,6 +499,8 @@ function createRecordCard(record, userRole) {
                         <option value="TODO" ${record.status === 'TODO' ? 'selected' : ''}>TODO</option>
                         <option value="In Progress" ${record.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
                         <option value="In Review" ${record.status === 'In Review' ? 'selected' : ''}>In Review</option>
+                        <option value="Review failed - In Progress" ${record.status === 'Review failed - In Progress' ? 'selected' : ''}>Review failed - In Progress</option>
+                        <option value="On-Hold" ${record.status === 'On-Hold' ? 'selected' : ''}>On-Hold</option>
                         <option value="Published" ${record.status === 'Published' ? 'selected' : ''}>Published</option>
                         `
                     }

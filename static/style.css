@@ -1362,3 +1362,34 @@ button:disabled {
         border: 1px solid #ccc;
     }
 }
+
+.status-reviewfailedinprogress { background: #e74c3c; color: white; }
+.status-on-hold { background: #95a5a6; color: white; }
+
+/* Add new time tracker styles */
+.time-tracker.review-failed {
+    border-left-color: #e74c3c;
+}
+
+.time-indicator.review-failed {
+    background: #e74c3c;
+    animation: pulse 2s infinite;
+}
+
+.compact-progress-fill.review-failed {
+    background: linear-gradient(90deg, #e74c3c, #c0392b);
+}
+
+/* Update time tracking grid for 3 trackers */
+.time-tracking-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+
+@media (max-width: 768px) {
+    .time-tracking-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+}
