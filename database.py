@@ -17,9 +17,9 @@ def init_db():
         )
     ''')
     
-    # Records table
+    # Records table - Create with new status options
     c.execute('''
-        CREATE TABLE IF NOT EXISTS records (
+        CREATE TABLE IF NOT EXISTS records_new (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             task TEXT NOT NULL,
             book_id TEXT NOT NULL,
@@ -27,7 +27,7 @@ def init_db():
             page_count INTEGER,
             ocr TEXT CHECK(ocr IN ('yes', 'no')),
             eta DATE,
-            status TEXT NOT NULL CHECK(status IN ('Backlog', 'TODO', 'In Progress', 'In Review', 'Published', 'On-Hold')),
+            status TEXT NOT NULL CHECK(status IN ('Backlog', 'TODO', 'In Progress', 'In Review', 'Published', 'On-Hold', 'Review failed - In Progress')),
             created_by TEXT NOT NULL,
             created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
             published_date DATETIME,
@@ -41,6 +41,28 @@ def init_db():
             FOREIGN KEY (created_by) REFERENCES users (username)
         )
     ''')
+    
+    # Check if old records table exists and migrate data
+    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='records'")
+    if c.fetchone():
+        print("Migrating data from old records table to new one...")
+        # Copy data from old table to new table
+        c.execute('''
+            INSERT INTO records_new 
+            (id, task, book_id, developer_assignee, page_count, ocr, eta, status, 
+             created_by, created_date, published_date, todo_start_time, in_progress_start_time,
+             total_todo_time, total_in_progress_time)
+            SELECT 
+            id, task, book_id, developer_assignee, page_count, ocr, eta, status,
+            created_by, created_date, published_date, todo_start_time, in_progress_start_time,
+            total_todo_time, total_in_progress_time
+            FROM records
+        ''')
+        # Drop old table
+        c.execute("DROP TABLE records")
+        # Rename new table
+        c.execute("ALTER TABLE records_new RENAME TO records")
+        print("Data migration completed successfully")
     
     # Insert default admin user if not exists
     c.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
