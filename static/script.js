@@ -12,6 +12,109 @@ let currentStatusFilter = '';
 let currentAssignedToMeFilter = false;
 let isLoading = false;
 
+// Toast notification system
+let toastCounter = 0;
+
+function showToast(message, type = 'info', duration = 5000) {
+    // Create toast container if it doesn't exist
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    
+    // Create toast element
+    const toastId = `toast-${++toastCounter}`;
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = `toast toast-${type}`;
+    
+    // Icons for different message types
+    const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+    
+    toast.innerHTML = `
+        <div class="toast-content">
+            <span class="toast-icon">${icons[type] || icons.info}</span>
+            <span class="toast-message">${message}</span>
+        </div>
+        <button class="toast-close" onclick="removeToast('${toastId}')">×</button>
+        <div class="toast-progress"></div>
+    `;
+    
+    // Add toast to container
+    container.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // Auto remove after duration
+    if (duration > 0) {
+        setTimeout(() => {
+            removeToast(toastId);
+        }, duration);
+    }
+    
+    // Click to dismiss
+    toast.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('toast-close')) {
+            removeToast(toastId);
+        }
+    });
+    
+    return toastId;
+}
+
+function removeToast(toastId) {
+    const toast = document.getElementById(toastId);
+    if (toast) {
+        toast.classList.remove('show');
+        toast.classList.add('hide');
+        
+        // Remove from DOM after animation
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }
+}
+
+// Enhanced error handling with toasts
+function showErrorToast(error, context = '') {
+    const message = context ? `${context}: ${error.message || error}` : (error.message || error);
+    console.error('Error:', error);
+    showToast(message, 'error', 7000);
+}
+
+function showSuccessToast(message) {
+    console.log('Success:', message);
+    showToast(message, 'success', 4000);
+}
+
+function showInfoToast(message) {
+    console.log('Info:', message);
+    showToast(message, 'info', 4000);
+}
+
+function showWarningToast(message) {
+    console.log('Warning:', message);
+    showToast(message, 'warning', 5000);
+}
+
+// Replace the old showMessage function
+function showMessage(message, type) {
+    showToast(message, type, 5000);
+}
+
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing app...');
@@ -201,7 +304,7 @@ async function loadDevelopers() {
         
     } catch (error) {
         console.error('Error loading developers:', error);
-        showMessage('Error loading developers: ' + error.message, 'error');
+        showErrorToast(error, 'Error loading developers');
     }
 }
 
@@ -265,6 +368,7 @@ async function loadRecords(page = 1) {
         
     } catch (error) {
         console.error('Error loading records:', error);
+        showErrorToast(error, 'Error loading records');
         const container = document.getElementById('recordsContainer');
         if (container) {
             container.innerHTML = `
@@ -437,7 +541,7 @@ function createRecordCard(record, userRole) {
                         ⏱️ Time Tracking
                     </div>
                     <button class="refresh-time-btn" onclick="refreshRecordTime(${record.id})" title="Refresh Time">
-                        🔄
+                        ⟳
                     </button>
                 </div>
                 <div class="time-tracking-grid">
@@ -550,12 +654,12 @@ async function handleStatusChange(event) {
             throw new Error(data.error);
         }
         
-        showMessage('Status updated successfully', 'success');
+        showSuccessToast('Status updated successfully');
         await loadRecords(currentPage);
         
     } catch (error) {
         console.error('Error updating status:', error);
-        showMessage('Error updating status: ' + error.message, 'error');
+        showErrorToast(error, 'Error updating status');
         await loadRecords(currentPage);
     }
 }
@@ -564,10 +668,10 @@ async function handleStatusChange(event) {
 async function refreshRecordTime(recordId) {
     try {
         await loadRecords(currentPage);
-        showMessage('Time refreshed successfully', 'success');
+        showSuccessToast('Time refreshed successfully');
     } catch (error) {
         console.error('Error refreshing time:', error);
-        showMessage('Error refreshing time', 'error');
+        showErrorToast(error, 'Error refreshing time');
     }
 }
 
@@ -587,7 +691,7 @@ async function handleCreateRecord(event) {
     
     // Validate required fields
     if (!formData.task || !formData.book_id) {
-        showMessage('Task and Book ID are required fields', 'error');
+        showErrorToast('Task and Book ID are required fields');
         return;
     }
     
@@ -607,13 +711,13 @@ async function handleCreateRecord(event) {
             throw new Error(data.error);
         }
         
-        showMessage('Record created successfully', 'success');
+        showSuccessToast('Record created successfully');
         closeCreateRecordModal();
         await loadRecords(1);
         
     } catch (error) {
         console.error('Error creating record:', error);
-        showMessage('Error creating record: ' + error.message, 'error');
+        showErrorToast(error, 'Error creating record');
     }
 }
 
@@ -633,7 +737,7 @@ async function handleEditRecord(event) {
         
     } catch (error) {
         console.error('Error loading record for edit:', error);
-        showMessage('Error loading record: ' + error.message, 'error');
+        showErrorToast(error, 'Error loading record');
     }
 }
 
@@ -669,7 +773,7 @@ async function handleEditRecordSubmit(event) {
     event.preventDefault();
     
     if (!currentRecordId) {
-        showMessage('No record selected for editing', 'error');
+        showErrorToast('No record selected for editing');
         return;
     }
     
@@ -698,20 +802,20 @@ async function handleEditRecordSubmit(event) {
             throw new Error(data.error);
         }
         
-        showMessage('Record updated successfully', 'success');
+        showSuccessToast('Record updated successfully');
         closeEditRecordModal();
         await loadRecords(currentPage);
         
     } catch (error) {
         console.error('Error updating record:', error);
-        showMessage('Error updating record: ' + error.message, 'error');
+        showErrorToast(error, 'Error updating record');
     }
 }
 
 // Handle delete record
 async function handleDeleteRecord() {
     if (!currentRecordId) {
-        showMessage('No record selected for deletion', 'error');
+        showErrorToast('No record selected for deletion');
         return;
     }
     
@@ -733,13 +837,13 @@ async function handleDeleteRecord() {
             throw new Error(data.error);
         }
         
-        showMessage('Record deleted successfully', 'success');
+        showSuccessToast('Record deleted successfully');
         closeEditRecordModal();
         await loadRecords(currentPage);
         
     } catch (error) {
         console.error('Error deleting record:', error);
-        showMessage('Error deleting record: ' + error.message, 'error');
+        showErrorToast(error, 'Error deleting record');
     }
 }
 
@@ -759,39 +863,16 @@ async function exportCSV() {
             url += '?' + params.toString();
         }
         
+        showInfoToast('Exporting CSV...');
         window.open(url, '_blank');
         
     } catch (error) {
         console.error('Error exporting CSV:', error);
-        showMessage('Error exporting CSV: ' + error.message, 'error');
+        showErrorToast(error, 'Error exporting CSV');
     }
 }
 
 // Utility functions
-function showMessage(message, type) {
-    // Remove existing messages
-    const existingMessage = document.querySelector('.message');
-    if (existingMessage) {
-        existingMessage.remove();
-    }
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
-    messageDiv.textContent = message;
-    
-    const container = document.querySelector('.container');
-    if (container) {
-        container.insertBefore(messageDiv, container.firstChild);
-    }
-    
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        if (messageDiv.parentNode) {
-            messageDiv.remove();
-        }
-    }, 5000);
-}
-
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
     
