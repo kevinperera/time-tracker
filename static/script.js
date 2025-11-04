@@ -479,6 +479,7 @@ function createRecordCard(record, userRole) {
     // Calculate progress percentages based on accumulated time
     const todoProgress = Math.min((record.time_todo / 24) * 100, 100);
     const inProgressProgress = Math.min((record.time_in_progress / 48) * 100, 100);
+    const inReviewProgress = Math.min((record.time_in_review / 48) * 100, 100);
     const reviewFailedProgress = Math.min((record.time_review_failed / 48) * 100, 100);
     
     // Format time with hours and minutes
@@ -491,6 +492,7 @@ function createRecordCard(record, userRole) {
     
     const todoTimeFormatted = formatTime(record.time_todo_hours, record.time_todo_minutes);
     const inProgressTimeFormatted = formatTime(record.time_in_progress_hours, record.time_in_progress_minutes);
+    const inReviewTimeFormatted = formatTime(record.time_in_review_hours, record.time_in_review_minutes);
     const reviewFailedTimeFormatted = formatTime(record.time_review_failed_hours, record.time_review_failed_minutes);
     
     return `
@@ -545,11 +547,12 @@ function createRecordCard(record, userRole) {
                     </button>
                 </div>
                 <div class="time-tracking-grid">
-                    <div class="time-tracker">
+                    <div class="time-tracker ${record.is_todo_tracking ? 'tracking-active' : ''}">
                         <div class="time-tracker-header">
                             <div class="time-tracker-label">
-                                <span class="time-indicator"></span>
+                                <span class="time-indicator ${record.is_todo_tracking ? 'pulse' : ''}"></span>
                                 TODO
+                                ${record.is_todo_tracking ? '<span class="tracking-badge">Tracking</span>' : ''}
                             </div>
                             <div class="time-tracker-value">${todoTimeFormatted}</div>
                         </div>
@@ -557,11 +560,12 @@ function createRecordCard(record, userRole) {
                             <div class="compact-progress-fill todo" style="width: ${todoProgress}%"></div>
                         </div>
                     </div>
-                    <div class="time-tracker in-progress">
+                    <div class="time-tracker in-progress ${record.is_in_progress_tracking ? 'tracking-active' : ''}">
                         <div class="time-tracker-header">
                             <div class="time-tracker-label">
-                                <span class="time-indicator in-progress"></span>
+                                <span class="time-indicator in-progress ${record.is_in_progress_tracking ? 'pulse' : ''}"></span>
                                 In Progress
+                                ${record.is_in_progress_tracking ? '<span class="tracking-badge">Tracking</span>' : ''}
                             </div>
                             <div class="time-tracker-value">${inProgressTimeFormatted}</div>
                         </div>
@@ -569,11 +573,25 @@ function createRecordCard(record, userRole) {
                             <div class="compact-progress-fill in-progress" style="width: ${inProgressProgress}%"></div>
                         </div>
                     </div>
-                    <div class="time-tracker review-failed">
+                    <div class="time-tracker in-review ${record.is_in_review_tracking ? 'tracking-active' : ''}">
                         <div class="time-tracker-header">
                             <div class="time-tracker-label">
-                                <span class="time-indicator review-failed"></span>
+                                <span class="time-indicator in-review ${record.is_in_review_tracking ? 'pulse' : ''}"></span>
+                                In Review
+                                ${record.is_in_review_tracking ? '<span class="tracking-badge">Tracking</span>' : ''}
+                            </div>
+                            <div class="time-tracker-value">${inReviewTimeFormatted}</div>
+                        </div>
+                        <div class="compact-progress-bar">
+                            <div class="compact-progress-fill in-review" style="width: ${inReviewProgress}%"></div>
+                        </div>
+                    </div>
+                    <div class="time-tracker review-failed ${record.is_review_failed_tracking ? 'tracking-active' : ''}">
+                        <div class="time-tracker-header">
+                            <div class="time-tracker-label">
+                                <span class="time-indicator review-failed ${record.is_review_failed_tracking ? 'pulse' : ''}"></span>
                                 Review Failed
+                                ${record.is_review_failed_tracking ? '<span class="tracking-badge">Tracking</span>' : ''}
                             </div>
                             <div class="time-tracker-value">${reviewFailedTimeFormatted}</div>
                         </div>

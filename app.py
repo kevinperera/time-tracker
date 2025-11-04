@@ -218,6 +218,7 @@ def get_records_route():
             # Calculate current time for active statuses and add to total
             current_todo_time = record['total_todo_time']
             current_in_progress_time = record['total_in_progress_time']
+            current_in_review_time = record['total_in_review_time']
             current_review_failed_time = record['total_review_failed_time']
             
             # Add current active time if status is TODO
@@ -228,6 +229,10 @@ def get_records_route():
             if record['status'] == 'In Progress' and record['in_progress_start_time']:
                 current_in_progress_time += calculate_time_spent(record['in_progress_start_time'])
             
+            # Add current active time if status is In Review
+            if record['status'] == 'In Review' and record['in_review_start_time']:
+                current_in_review_time += calculate_time_spent(record['in_review_start_time'])
+            
             # Add current active time if status is Review failed - In Progress
             if record['status'] == 'Review failed - In Progress' and record['review_failed_start_time']:
                 current_review_failed_time += calculate_time_spent(record['review_failed_start_time'])
@@ -237,12 +242,21 @@ def get_records_route():
             record['time_todo_minutes'] = int((current_todo_time - record['time_todo_hours']) * 60)
             record['time_in_progress_hours'] = int(current_in_progress_time)
             record['time_in_progress_minutes'] = int((current_in_progress_time - record['time_in_progress_hours']) * 60)
+            record['time_in_review_hours'] = int(current_in_review_time)
+            record['time_in_review_minutes'] = int((current_in_review_time - record['time_in_review_hours']) * 60)
             record['time_review_failed_hours'] = int(current_review_failed_time)
             record['time_review_failed_minutes'] = int((current_review_failed_time - record['time_review_failed_hours']) * 60)
             
             record['time_todo'] = current_todo_time
             record['time_in_progress'] = current_in_progress_time
+            record['time_in_review'] = current_in_review_time
             record['time_review_failed'] = current_review_failed_time
+            
+            # Add tracking indicators
+            record['is_todo_tracking'] = record['status'] == 'TODO' and record['todo_start_time'] is not None
+            record['is_in_progress_tracking'] = record['status'] == 'In Progress' and record['in_progress_start_time'] is not None
+            record['is_in_review_tracking'] = record['status'] == 'In Review' and record['in_review_start_time'] is not None
+            record['is_review_failed_tracking'] = record['status'] == 'Review failed - In Progress' and record['review_failed_start_time'] is not None
         
         return jsonify({
             'records': records, 
@@ -391,20 +405,24 @@ def get_record_time_route(record_id):
         # Calculate current times including active session
         time_todo = record['total_todo_time']
         time_in_progress = record['total_in_progress_time']
+        time_in_review = record['total_in_review_time']
         time_review_failed = record['total_review_failed_time']
         
         if record['status'] == 'TODO' and record['todo_start_time']:
             time_todo += calculate_time_spent(record['todo_start_time'])
         elif record['status'] == 'In Progress' and record['in_progress_start_time']:
             time_in_progress += calculate_time_spent(record['in_progress_start_time'])
+        elif record['status'] == 'In Review' and record['in_review_start_time']:
+            time_in_review += calculate_time_spent(record['in_review_start_time'])
         elif record['status'] == 'Review failed - In Progress' and record['review_failed_start_time']:
             time_review_failed += calculate_time_spent(record['review_failed_start_time'])
         
-        total_time = time_todo + time_in_progress + time_review_failed
+        total_time = time_todo + time_in_progress + time_in_review + time_review_failed
         
         return jsonify({
             'time_todo': time_todo,
             'time_in_progress': time_in_progress,
+            'time_in_review': time_in_review,
             'time_review_failed': time_review_failed,
             'total_time': total_time
         })
