@@ -215,27 +215,27 @@ def get_records_route():
             else:
                 record['eta_warning'] = False
             
-            # Calculate current time for active statuses
-            current_todo_time = 0
-            current_in_progress_time = 0
-            current_in_review_time = 0
-            current_review_failed_time = 0
+            # Calculate current time for active statuses and add to total
+            current_todo_time = record['total_todo_time']
+            current_in_progress_time = record['total_in_progress_time']
+            current_in_review_time = record['total_in_review_time']
+            current_review_failed_time = record['total_review_failed_time']
             
             # Add current active time if status is TODO
             if record['status'] == 'TODO' and record['todo_start_time']:
-                current_todo_time = calculate_time_spent(record['todo_start_time'])
+                current_todo_time += calculate_time_spent(record['todo_start_time'])
             
             # Add current active time if status is In Progress
             if record['status'] == 'In Progress' and record['in_progress_start_time']:
-                current_in_progress_time = calculate_time_spent(record['in_progress_start_time'])
+                current_in_progress_time += calculate_time_spent(record['in_progress_start_time'])
             
             # Add current active time if status is In Review
             if record['status'] == 'In Review' and record['in_review_start_time']:
-                current_in_review_time = calculate_time_spent(record['in_review_start_time'])
+                current_in_review_time += calculate_time_spent(record['in_review_start_time'])
             
             # Add current active time if status is Review failed - In Progress
             if record['status'] == 'Review failed - In Progress' and record['review_failed_start_time']:
-                current_review_failed_time = calculate_time_spent(record['review_failed_start_time'])
+                current_review_failed_time += calculate_time_spent(record['review_failed_start_time'])
             
             # Convert to hours and minutes
             record['time_todo_hours'] = int(current_todo_time)
@@ -372,14 +372,8 @@ def update_record_status_route(record_id):
                 print(f"DEBUG: Developer {username} is NOT assigned to record {record_id}")
                 return jsonify({'error': 'Access denied - You can only update status of your assigned records'}), 403
         
-        # Admin and Lead can update status of any record but only to specific statuses
+        # Admin and Lead can update status of any record
         if user_role in ['admin', 'lead']:
-            # Admin/Lead can only change to: Backlog, TODO, On-Hold, Published
-            allowed_statuses = ['Backlog', 'TODO', 'On-Hold', 'Published']
-            if new_status not in allowed_statuses:
-                return jsonify({'error': f'Admin/Lead can only set status to: {", ".join(allowed_statuses)}'}), 403
-            
-            print(f"DEBUG: Admin/Lead {username} updating record {record_id} status to {new_status}")
             update_record(record_id, status=new_status)
             return jsonify({'message': 'Status updated successfully'})
         
@@ -409,19 +403,19 @@ def get_record_time_route(record_id):
             return jsonify({'error': 'Record not found'}), 404
         
         # Calculate current times including active session
-        time_todo = 0
-        time_in_progress = 0
-        time_in_review = 0
-        time_review_failed = 0
+        time_todo = record['total_todo_time']
+        time_in_progress = record['total_in_progress_time']
+        time_in_review = record['total_in_review_time']
+        time_review_failed = record['total_review_failed_time']
         
         if record['status'] == 'TODO' and record['todo_start_time']:
-            time_todo = calculate_time_spent(record['todo_start_time'])
+            time_todo += calculate_time_spent(record['todo_start_time'])
         elif record['status'] == 'In Progress' and record['in_progress_start_time']:
-            time_in_progress = calculate_time_spent(record['in_progress_start_time'])
+            time_in_progress += calculate_time_spent(record['in_progress_start_time'])
         elif record['status'] == 'In Review' and record['in_review_start_time']:
-            time_in_review = calculate_time_spent(record['in_review_start_time'])
+            time_in_review += calculate_time_spent(record['in_review_start_time'])
         elif record['status'] == 'Review failed - In Progress' and record['review_failed_start_time']:
-            time_review_failed = calculate_time_spent(record['review_failed_start_time'])
+            time_review_failed += calculate_time_spent(record['review_failed_start_time'])
         
         total_time = time_todo + time_in_progress + time_in_review + time_review_failed
         
@@ -485,7 +479,21 @@ def export_csv():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Workload Tracking Routes
+# Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    if request.headers.get('Content-Type') == 'application/json':
+        return jsonify({'error': 'Resource not found'}), 404
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    if request.headers.get('Content-Type') == 'application/json':
+        return jsonify({'error': 'Internal server error'}), 500
+    return render_template('500.html'), 500
+
+
+
 @app.route('/workload')
 @login_required
 @role_required(['admin', 'lead'])
@@ -527,18 +535,7 @@ def api_get_developers_for_workload():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Error handlers
-@app.errorhandler(404)
-def not_found(error):
-    if request.headers.get('Content-Type') == 'application/json':
-        return jsonify({'error': 'Resource not found'}), 404
-    return render_template('404.html'), 404
 
-@app.errorhandler(500)
-def internal_error(error):
-    if request.headers.get('Content-Type') == 'application/json'):
-        return jsonify({'error': 'Internal server error'}), 500
-    return render_template('500.html'), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
