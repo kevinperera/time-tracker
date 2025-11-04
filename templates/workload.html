@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workload Dashboard - Time Tracker Pro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Enhanced Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="logo">CONTENT CAPTURE TEAM - PDF</div>
+            </div>
+            
+            <div class="user-nav">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        {{ username[0]|upper }}
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">{{ username }}</div>
+                        <div class="user-role">{{ role|title }}</div>
+                    </div>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="/dashboard" class="nav-link">
+                        📊 Dashboard
+                    </a>
+                    {% if role == 'admin' %}
+                    <a href="/admin/users" class="nav-link">
+                        👥 User Management
+                    </a>
+                    {% endif %}
+                    <a href="/workload" class="nav-link active">
+                        📈 Workload Tracking
+                    </a>
+                    <a href="/logout" class="nav-link logout">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Workload Filters -->
+        <div class="form-section">
+            <h2>Workload Overview</h2>
+            <div class="search-filters">
+                <div class="filter-item">
+                    <div class="filter-label">Date</div>
+                    <input type="date" id="workloadDate" class="filter-select">
+                </div>
+                
+                <div class="filter-item">
+                    <div class="filter-label">Developer</div>
+                    <select id="developerFilter" class="filter-select">
+                        <option value="">All Developers</option>
+                    </select>
+                </div>
+                
+                <button onclick="loadWorkloadData()" class="export-btn">
+                    🔍 Load Workload
+                </button>
+                
+                <button onclick="exportWorkloadReport()" class="export-btn">
+                    📊 Export Report
+                </button>
+            </div>
+        </div>
+
+        <!-- Workload Summary -->
+        <div class="records-section">
+            <h2>Developer Workload Summary</h2>
+            <div id="workloadSummary" class="workload-summary">
+                <div class="loading">Loading workload data...</div>
+            </div>
+        </div>
+
+        <!-- Detailed Activities -->
+        <div class="records-section">
+            <h2>Detailed Activities</h2>
+            <div id="activitiesList" class="activities-list">
+                <div class="loading">Loading activities...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='workload.js') }}"></script>
+</body>
+</html>

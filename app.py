@@ -492,5 +492,50 @@ def internal_error(error):
         return jsonify({'error': 'Internal server error'}), 500
     return render_template('500.html'), 500
 
+
+
+@app.route('/workload')
+@login_required
+@role_required(['admin', 'lead'])
+def workload_dashboard():
+    return render_template('workload.html', 
+                         username=session['username'], 
+                         role=session['role'])
+
+@app.route('/api/workload')
+@login_required
+@role_required(['admin', 'lead'])
+def api_get_workload():
+    try:
+        date = request.args.get('date')
+        developer = request.args.get('developer')
+        
+        if not date:
+            date = datetime.now().strftime('%Y-%m-%d')
+        
+        workload_data = get_developer_workload(date, developer)
+        activities = get_developer_daily_activities(date, developer)
+        
+        return jsonify({
+            'workload': workload_data,
+            'activities': activities,
+            'date': date,
+            'developer': developer
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/developers/workload')
+@login_required
+@role_required(['admin', 'lead'])
+def api_get_developers_for_workload():
+    try:
+        developers = get_users(role='developer')
+        return jsonify({'developers': developers})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
 if __name__ == '__main__':
     app.run(debug=True)

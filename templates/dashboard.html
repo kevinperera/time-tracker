@@ -34,6 +34,11 @@
                         👥 User Management
                     </a>
                     {% endif %}
+                    {% if role in ['admin', 'lead'] %}
+                    <a href="/workload" class="nav-link">
+                        📈 Workload Tracking
+                    </a>
+                    {% endif %}
                     <a href="/logout" class="nav-link logout">
                         🚪 Logout
                     </a>

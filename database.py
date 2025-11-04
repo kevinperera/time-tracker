@@ -548,3 +548,144 @@ def get_records_count(user_role=None, username=None, status=None, search=None, d
     count = c.fetchone()[0]
     conn.close()
     return count
+
+
+
+
+def get_developer_workload(date=None, developer_username=None):
+    """
+    Get workload data for developers for a specific date
+    Returns time spent by each developer on each status for the given date
+    """
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    # Default to today if no date provided
+    if not date:
+        date = datetime.now().strftime('%Y-%m-%d')
+    
+    # Build query based on parameters
+    query = """
+        SELECT 
+            r.developer_assignee,
+            r.status,
+            SUM(CASE 
+                WHEN r.status = 'TODO' THEN r.total_todo_time
+                WHEN r.status = 'In Progress' THEN r.total_in_progress_time
+                WHEN r.status = 'In Review' THEN r.total_in_review_time
+                WHEN r.status = 'Review failed - In Progress' THEN r.total_review_failed_time
+                ELSE 0
+            END) as total_time,
+            COUNT(r.id) as record_count
+        FROM records r
+        WHERE r.developer_assignee IS NOT NULL
+        AND DATE(r.created_date) = ?
+    """
+    params = [date]
+    
+    if developer_username:
+        query += " AND r.developer_assignee = ?"
+        params.append(developer_username)
+    
+    query += """
+        GROUP BY r.developer_assignee, r.status
+        ORDER BY r.developer_assignee, r.status
+    """
+    
+    c.execute(query, params)
+    results = c.fetchall()
+    
+    # Process results into a structured format
+    workload_data = {}
+    for row in results:
+        developer, status, total_time, record_count = row
+        if developer not in workload_data:
+            workload_data[developer] = {
+                'todo_time': 0,
+                'in_progress_time': 0,
+                'in_review_time': 0,
+                'review_failed_time': 0,
+                'total_time': 0,
+                'record_count': 0,
+                'status_breakdown': {}
+            }
+        
+        workload_data[developer]['status_breakdown'][status] = {
+            'time': total_time,
+            'record_count': record_count
+        }
+        
+        # Add to specific status totals
+        if status == 'TODO':
+            workload_data[developer]['todo_time'] += total_time
+        elif status == 'In Progress':
+            workload_data[developer]['in_progress_time'] += total_time
+        elif status == 'In Review':
+            workload_data[developer]['in_review_time'] += total_time
+        elif status == 'Review failed - In Progress':
+            workload_data[developer]['review_failed_time'] += total_time
+        
+        workload_data[developer]['total_time'] += total_time
+        workload_data[developer]['record_count'] += record_count
+    
+    conn.close()
+    return workload_data
+
+def get_developer_daily_activities(date=None, developer_username=None):
+    """
+    Get detailed daily activities for developers
+    """
+    conn = sqlite3.connect('time_tracker.db')
+    c = conn.cursor()
+    
+    if not date:
+        date = datetime.now().strftime('%Y-%m-%d')
+    
+    query = """
+        SELECT 
+            r.id,
+            r.task,
+            r.book_id,
+            r.developer_assignee,
+            r.status,
+            r.total_todo_time,
+            r.total_in_progress_time,
+            r.total_in_review_time,
+            r.total_review_failed_time,
+            r.created_date,
+            r.published_date
+        FROM records r
+        WHERE r.developer_assignee IS NOT NULL
+        AND DATE(r.created_date) = ?
+    """
+    params = [date]
+    
+    if developer_username:
+        query += " AND r.developer_assignee = ?"
+        params.append(developer_username)
+    
+    query += " ORDER BY r.developer_assignee, r.created_date"
+    
+    c.execute(query, params)
+    results = c.fetchall()
+    
+    activities = []
+    for row in results:
+        activity = {
+            'id': row[0],
+            'task': row[1],
+            'book_id': row[2],
+            'developer_assignee': row[3],
+            'status': row[4],
+            'todo_time': row[5] or 0,
+            'in_progress_time': row[6] or 0,
+            'in_review_time': row[7] or 0,
+            'review_failed_time': row[8] or 0,
+            'created_date': row[9],
+            'published_date': row[10],
+            'total_time': (row[5] or 0) + (row[6] or 0) + (row[7] or 0) + (row[8] or 0)
+        }
+        activities.append(activity)
+    
+    conn.close()
+    return activities
