@@ -495,6 +495,38 @@ function createRecordCard(record, userRole) {
     const inReviewTimeFormatted = formatTime(record.time_in_review_hours, record.time_in_review_minutes);
     const reviewFailedTimeFormatted = formatTime(record.time_review_failed_hours, record.time_review_failed_minutes);
     
+    // Determine allowed statuses based on user role
+    let statusOptions = '';
+    
+    if (userRole === 'developer' && isAssignedDeveloper) {
+        // Developers can only change to: In Progress, In Review, Review failed - In Progress, On-Hold, Published
+        statusOptions = `
+            <option value="Backlog" disabled ${record.status === 'Backlog' ? 'selected' : ''}>Backlog</option>
+            <option value="TODO" disabled ${record.status === 'TODO' ? 'selected' : ''}>TODO</option>
+            <option value="In Progress" ${record.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+            <option value="In Review" ${record.status === 'In Review' ? 'selected' : ''}>In Review</option>
+            <option value="Review failed - In Progress" ${record.status === 'Review failed - In Progress' ? 'selected' : ''}>Review failed - In Progress</option>
+            <option value="On-Hold" ${record.status === 'On-Hold' ? 'selected' : ''}>On-Hold</option>
+            <option value="Published" ${record.status === 'Published' ? 'selected' : ''}>Published</option>
+        `;
+    } else if (userRole in ['admin', 'lead']) {
+        // Admin/Lead can only change to: Backlog, TODO, On-Hold, Published
+        statusOptions = `
+            <option value="Backlog" ${record.status === 'Backlog' ? 'selected' : ''}>Backlog</option>
+            <option value="TODO" ${record.status === 'TODO' ? 'selected' : ''}>TODO</option>
+            <option value="In Progress" disabled ${record.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+            <option value="In Review" disabled ${record.status === 'In Review' ? 'selected' : ''}>In Review</option>
+            <option value="Review failed - In Progress" disabled ${record.status === 'Review failed - In Progress' ? 'selected' : ''}>Review failed - In Progress</option>
+            <option value="On-Hold" ${record.status === 'On-Hold' ? 'selected' : ''}>On-Hold</option>
+            <option value="Published" ${record.status === 'Published' ? 'selected' : ''}>Published</option>
+        `;
+    } else {
+        // Other users (or developers not assigned) can't change status
+        statusOptions = `
+            <option value="${record.status}" selected>${record.status}</option>
+        `;
+    }
+    
     return `
         <div class="record-card ${record.eta_warning ? 'warning' : ''}" data-record-id="${record.id}">
             <div class="record-header">
@@ -605,27 +637,7 @@ function createRecordCard(record, userRole) {
             <div class="record-actions">
                 ${canChangeStatus ? `
                 <select class="status-select" data-record-id="${record.id}">
-                    ${userRole === 'developer' ? 
-                        `
-                        <option value="Backlog" disabled ${record.status === 'Backlog' ? 'selected' : ''}>Backlog</option>
-                        <option value="TODO" disabled ${record.status === 'TODO' ? 'selected' : ''}>TODO</option>
-                        <option value="In Progress" ${record.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                        <option value="In Review" ${record.status === 'In Review' ? 'selected' : ''}>In Review</option>
-                        <option value="Review failed - In Progress" ${record.status === 'Review failed - In Progress' ? 'selected' : ''}>Review failed - In Progress</option>
-                        <option value="On-Hold" ${record.status === 'On-Hold' ? 'selected' : ''}>On-Hold</option>
-                        <option value="Published" ${record.status === 'Published' ? 'selected' : ''}>Published</option>
-                        ` 
-                        : 
-                        `
-                        <option value="Backlog" ${record.status === 'Backlog' ? 'selected' : ''}>Backlog</option>
-                        <option value="TODO" ${record.status === 'TODO' ? 'selected' : ''}>TODO</option>
-                        <option value="In Progress" ${record.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                        <option value="In Review" ${record.status === 'In Review' ? 'selected' : ''}>In Review</option>
-                        <option value="Review failed - In Progress" ${record.status === 'Review failed - In Progress' ? 'selected' : ''}>Review failed - In Progress</option>
-                        <option value="On-Hold" ${record.status === 'On-Hold' ? 'selected' : ''}>On-Hold</option>
-                        <option value="Published" ${record.status === 'Published' ? 'selected' : ''}>Published</option>
-                        `
-                    }
+                    ${statusOptions}
                 </select>
                 ` : `
                 <span class="status-text">Status: ${record.status}</span>
